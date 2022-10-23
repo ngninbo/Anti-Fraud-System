@@ -1,6 +1,7 @@
 package antifraud.controller;
 
 import antifraud.domain.TransactionResponse;
+import antifraud.exception.UserNotFoundException;
 import antifraud.model.Transaction;
 import antifraud.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ public class TransactionController {
     }
 
     @PostMapping("/transaction")
-    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody Transaction transaction) {
+    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody Transaction transaction) throws UserNotFoundException {
         return ResponseEntity.ok(transactionService.validate(transaction));
     }
 }

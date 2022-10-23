@@ -236,9 +236,9 @@ files:
 - name: src/antifraud/controller/TransactionController.java
   visible: true
   learner_created: true
-feedback_link: https://hyperskill.org/projects/232/stages/1161/implement#comment
+feedback_link: https://hyperskill.org/learn/step/18067#comment
 status: Solved
 feedback:
   message: Congratulations!
   time: Sun, 23 Oct 2022 09:43:37 UTC
-record: -1
+record: 1

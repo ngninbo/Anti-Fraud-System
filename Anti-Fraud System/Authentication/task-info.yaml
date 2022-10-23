@@ -490,6 +490,213 @@ files:
         };
     }
   learner_created: false
-feedback_link: https://hyperskill.org/projects/232/stages/1162/implement#comment
-status: Unchecked
+- name: src/antifraud/controller/TransactionController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.model.Transaction;
+    import antifraud.service.TransactionService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.PostMapping;
+    import org.springframework.web.bind.annotation.RequestBody;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    import org.springframework.web.bind.annotation.RestController;
+
+    import javax.validation.Valid;
+
+    @RestController
+    @RequestMapping(path = "/api/antifraud", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class TransactionController {
+
+        public final TransactionService transactionService;
+
+        @Autowired
+        public TransactionController(TransactionService transactionService) {
+            this.transactionService = transactionService;
+        }
+
+        @PostMapping("/transaction")
+        public ResponseEntity<TransactionResponse> process(@Valid @RequestBody Transaction transaction) {
+            return ResponseEntity.ok(transactionService.validate(transaction));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionValidationResult.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    public enum TransactionValidationResult {
+
+        ALLOWED(0, 200),
+        MANUAL_PROCESSING(200, 1500),
+        PROHIBITED(1500, Integer.MAX_VALUE);
+
+        private final int lower;
+        private final int upper;
+
+        TransactionValidationResult(int lower, int upper) {
+            this.lower = lower;
+            this.upper = upper;
+        }
+
+        public int getLower() {
+            return lower;
+        }
+
+        public int getUpper() {
+            return upper;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/ITransactionService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.model.Transaction;
+
+    public interface ITransactionService {
+
+        TransactionResponse validate(Transaction transaction);
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class TransactionResponse {
+
+        private TransactionValidationResult result;
+    }
+  learner_created: true
+- name: src/antifraud/service/TransactionService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.domain.TransactionValidationResult;
+    import antifraud.model.Transaction;
+    import org.springframework.stereotype.Service;
+
+    import static antifraud.domain.TransactionValidationResult.*;
+
+    @Service
+    public class TransactionService implements ITransactionService {
+
+        @Override
+        public TransactionResponse validate(Transaction transaction) {
+
+            TransactionValidationResult result;
+
+            final Long amount = transaction.getAmount();
+            if (amount > ALLOWED.getLower() && amount <= ALLOWED.getUpper()) {
+                result = ALLOWED;
+            } else if (amount >= ALLOWED.getUpper() && amount <= PROHIBITED.getLower()) {
+                result = MANUAL_PROCESSING;
+            } else {
+                result = PROHIBITED;
+            }
+
+            return TransactionResponse.builder().result(result).build();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserDto.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/mapper/UserMapper.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/repository/UserRepository.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/service/IUserService.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/service/UserService.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/UserAlreadyExistException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/handler/AntiFraudExceptionHandler.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/domain/AntiFraudCustomErrorMessage.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/UserNotFoundException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/controller/UserController.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/model/Transaction.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Data;
+    import lombok.NoArgsConstructor;
+
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotNull;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public class Transaction {
+
+        @NotNull
+        private Long amount;
+
+        @AssertTrue(message = "The transaction amount must be greater than 0")
+        public boolean isNonNegativeAmount() {
+            return amount != null && amount > 0;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/User.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/repository/TransactionRepository.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/auth/UserDetailsImpl.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/auth/SecurityConfig.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/auth/RestAuthenticationEntryPoint.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/domain/UserDeletionResponse.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/service/UserDetailsServiceImpl.java
+  visible: true
+  learner_created: true
+feedback_link: https://hyperskill.org/learn/step/18068#comment
+status: Solved
+feedback:
+  message: Congratulations!
+  time: Sun, 23 Oct 2022 14:03:28 UTC
 record: -1
