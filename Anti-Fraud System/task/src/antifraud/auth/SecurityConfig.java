@@ -1,5 +1,7 @@
 package antifraud.auth;
 
+import antifraud.handler.AntiFraudAccessDeniedHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,18 +13,23 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import static antifraud.domain.UserRole.*;
+
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private static final int ENCODER_STRENGTH = 13;
     private final UserDetailsService userDetailsService;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final AntiFraudAccessDeniedHandler accessDeniedHandler;
 
 
+    @Autowired
     public SecurityConfig(UserDetailsService userDetailsService,
-                          RestAuthenticationEntryPoint restAuthenticationEntryPoint) {
+                          RestAuthenticationEntryPoint restAuthenticationEntryPoint, AntiFraudAccessDeniedHandler accessDeniedHandler) {
         this.userDetailsService = userDetailsService;
         this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Override
@@ -33,15 +40,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     public void configure(HttpSecurity http) throws Exception {
-        http.httpBasic()
+        http
+                .exceptionHandling().accessDeniedHandler(accessDeniedHandler)
+                .and()
+                .httpBasic()
                 .authenticationEntryPoint(restAuthenticationEntryPoint) // Handles auth error
                 .and()
                 .csrf().disable().headers().frameOptions().disable() // for Postman, the H2 console
                 .and()
                 .authorizeRequests() // manage access
-                .mvcMatchers(HttpMethod.GET, "/api/auth/list").hasRole("USER")
-                .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole("USER")
-                .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole("USER")
+                .mvcMatchers(HttpMethod.GET, "/api/auth/list").hasAnyRole(ROLE_ADMINISTRATOR.getDescription(), ROLE_SUPPORT.getDescription())
+                .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole(ROLE_MERCHANT.getDescription())
+                .mvcMatchers(HttpMethod.PUT, "/api/auth/access", "/api/auth/role").hasRole(ROLE_ADMINISTRATOR.getDescription())
+                .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole(ROLE_ADMINISTRATOR.getDescription())
                 .antMatchers(HttpMethod.POST, "/api/auth/user").permitAll()
                 .antMatchers("/actuator/shutdown").permitAll() // needs to run test
                 // other matchers

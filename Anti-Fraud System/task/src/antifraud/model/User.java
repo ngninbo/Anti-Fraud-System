@@ -1,5 +1,6 @@
 package antifraud.model;
 
+import antifraud.domain.UserRole;
 import lombok.*;
 import org.hibernate.Hibernate;
 
@@ -28,7 +29,10 @@ public class User {
     @NotEmpty(message = "password must not be empty")
     private String password;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private UserRole role;
+
+    private boolean accountNonLocked;
 
     @OneToMany(mappedBy="user", orphanRemoval = true)
     private Set<Transaction> transactions;
@@ -44,5 +48,9 @@ public class User {
     @Override
     public int hashCode() {
         return getClass().hashCode();
+    }
+
+    public boolean isAdmin() {
+        return UserRole.ROLE_ADMINISTRATOR.equals(role);
     }
 }

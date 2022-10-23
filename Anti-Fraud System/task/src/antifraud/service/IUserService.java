@@ -1,7 +1,7 @@
 package antifraud.service;
 
-import antifraud.domain.UserDeletionResponse;
-import antifraud.domain.UserDto;
+import antifraud.domain.*;
+import antifraud.exception.RoleUpdateException;
 import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
 import antifraud.model.User;
@@ -18,4 +18,8 @@ public interface IUserService {
     List<UserDto> findAll();
 
     UserDeletionResponse remove(String username) throws UserNotFoundException;
+
+    UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException;
+
+    AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, RoleUpdateException;
 }

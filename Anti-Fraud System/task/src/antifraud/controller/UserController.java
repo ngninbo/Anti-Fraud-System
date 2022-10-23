@@ -1,7 +1,7 @@
 package antifraud.controller;
 
-import antifraud.domain.UserDeletionResponse;
-import antifraud.domain.UserDto;
+import antifraud.domain.*;
+import antifraud.exception.RoleUpdateException;
 import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
 import antifraud.model.User;
@@ -18,7 +18,7 @@ import javax.validation.Valid;
 import java.util.List;
 
 @RestController
-@RequestMapping(path = "/api", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(path = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 @Validated
 public class UserController {
 
@@ -31,19 +31,31 @@ public class UserController {
         this.encoder = encoder;
     }
 
-    @PostMapping("/auth/user")
+    @PostMapping("/user")
     public ResponseEntity<UserDto> create(@Valid @RequestBody User user) throws UserAlreadyExistException {
         user.setPassword(encoder.encode(user.getPassword()));
         return new ResponseEntity<>(userService.create(user), HttpStatus.CREATED);
     }
 
-    @GetMapping("auth/list")
+    @GetMapping("/list")
     public ResponseEntity<List<UserDto>> fetchAll() {
         return ResponseEntity.ok(userService.findAll());
     }
 
-    @DeleteMapping("/auth/user/{username}")
+    @DeleteMapping("/user/{username}")
     public ResponseEntity<UserDeletionResponse> remove(@PathVariable String username) throws UserNotFoundException {
         return ResponseEntity.ok(userService.remove(username));
+    }
+
+    @PutMapping("/role")
+    public ResponseEntity<UserDto> changeRole(@Valid @RequestBody RoleChangeRequest request)
+            throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+        return ResponseEntity.ok(userService.update(request));
+    }
+
+    @PutMapping("/access")
+    public ResponseEntity<AccessUpdateResponse> updateAccess(@Valid @RequestBody AccessUpdateRequest request)
+            throws UserNotFoundException, RoleUpdateException {
+        return ResponseEntity.ok(userService.updateAccess(request));
     }
 }

@@ -11,7 +11,8 @@ import java.util.stream.Collectors;
 public class UserMapper {
 
     public UserDto toDto(User user) {
-        return UserDto.builder().id(user.getId()).name(user.getName()).username(user.getUsername()).build();
+        return UserDto.builder().id(user.getId()).name(user.getName())
+                .username(user.getUsername()).role(user.getRole().getDescription()).build();
     }
 
     public List<UserDto> toList(List<User> users) {

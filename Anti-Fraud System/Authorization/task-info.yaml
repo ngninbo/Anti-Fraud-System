@@ -709,6 +709,812 @@ files:
         };
     }
   learner_created: false
+- name: src/antifraud/controller/UserController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.UserDeletionResponse;
+    import antifraud.domain.UserDto;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.User;
+    import antifraud.service.UserService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.security.crypto.password.PasswordEncoder;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.*;
+
+    import javax.validation.Valid;
+    import java.util.List;
+
+    @RestController
+    @RequestMapping(path = "/api", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class UserController {
+
+        private final UserService userService;
+        private final PasswordEncoder encoder;
+
+        @Autowired
+        public UserController(UserService userService, PasswordEncoder encoder) {
+            this.userService = userService;
+            this.encoder = encoder;
+        }
+
+        @PostMapping("/auth/user")
+        public ResponseEntity<UserDto> create(@Valid @RequestBody User user) throws UserAlreadyExistException {
+            user.setPassword(encoder.encode(user.getPassword()));
+            return new ResponseEntity<>(userService.create(user), HttpStatus.CREATED);
+        }
+
+        @GetMapping("auth/list")
+        public ResponseEntity<List<UserDto>> fetchAll() {
+            return ResponseEntity.ok(userService.findAll());
+        }
+
+        @DeleteMapping("/auth/user/{username}")
+        public ResponseEntity<UserDeletionResponse> remove(@PathVariable String username) throws UserNotFoundException {
+            return ResponseEntity.ok(userService.remove(username));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/handler/AntiFraudExceptionHandler.java
+  visible: true
+  text: |
+    package antifraud.handler;
+
+    import antifraud.domain.AntiFraudCustomErrorMessage;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.web.bind.MethodArgumentNotValidException;
+    import org.springframework.web.bind.annotation.ControllerAdvice;
+    import org.springframework.web.bind.annotation.ExceptionHandler;
+
+    import javax.servlet.http.HttpServletRequest;
+    import java.time.LocalDateTime;
+
+    @ControllerAdvice
+    public class AntiFraudExceptionHandler {
+
+        @ExceptionHandler({MethodArgumentNotValidException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleValidationError(MethodArgumentNotValidException e,
+                                                                                 HttpServletRequest request) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                    .message(e.getBindingResult().getAllErrors().get(0).getDefaultMessage())
+                    .path(request.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        }
+
+        @ExceptionHandler({UserAlreadyExistException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(UserAlreadyExistException exception, HttpServletRequest request) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.CONFLICT.value())
+                    .error(HttpStatus.CONFLICT.getReasonPhrase())
+                    .message(exception.getMessage())
+                    .path(request.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+        }
+
+        @ExceptionHandler({UserNotFoundException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(UserNotFoundException exception, HttpServletRequest httpServletRequest) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.NOT_FOUND.value())
+                    .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                    .message(exception.getMessage())
+                    .path(httpServletRequest.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/Transaction.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import antifraud.domain.TransactionValidationResult;
+    import com.fasterxml.jackson.annotation.JsonProperty;
+    import lombok.*;
+    import org.hibernate.Hibernate;
+    import org.hibernate.annotations.OnDelete;
+    import org.hibernate.annotations.OnDeleteAction;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotNull;
+    import java.util.Objects;
+
+    @Getter
+    @Setter
+    @ToString
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    @Entity
+    @Table(name = "transactions")
+    @SequenceGenerator(name = "transaction_sequence", sequenceName = "TransactionSequence")
+    public class Transaction {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "transaction_sequence")
+        private Long id;
+
+        @NotNull
+        private Long amount;
+
+        @Enumerated(EnumType.STRING)
+        private TransactionValidationResult status;
+
+        @ManyToOne
+        @OnDelete(action = OnDeleteAction.CASCADE)
+        @JoinColumn(name = "user_id")
+        private User user;
+
+        @AssertTrue(message = "The transaction amount must be greater than 0")
+        public boolean isNonNegativeAmount() {
+            return amount != null && amount > 0;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            Transaction that = (Transaction) o;
+            return id != null && Objects.equals(id, that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/User.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import lombok.*;
+    import org.hibernate.Hibernate;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.NotEmpty;
+    import java.util.Objects;
+    import java.util.Set;
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    @Entity
+    @Table(name = "users")
+    @SequenceGenerator(name = "sequence", sequenceName = "UserSeq")
+    public class User {
+
+        @Id
+        @Column(name = "user_id")
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sequence")
+        private Long id;
+        @NotEmpty(message = "name must not be empty")
+        private String name;
+        @NotEmpty(message = "username must not be empty")
+        private String username;
+        @NotEmpty(message = "password must not be empty")
+        private String password;
+
+        private String role;
+
+        @OneToMany(mappedBy="user", orphanRemoval = true)
+        private Set<Transaction> transactions;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            User user = (User) o;
+            return id != null && Objects.equals(id, user.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/UserRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.model.User;
+    import org.springframework.data.repository.CrudRepository;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface UserRepository extends CrudRepository<User, Long> {
+
+        Optional<User> findUsersByUsernameIgnoreCase(String name);
+        List<User> findAll();
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionValidationResult.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    public enum TransactionValidationResult {
+
+        ALLOWED(0, 200),
+        MANUAL_PROCESSING(200, 1500),
+        PROHIBITED(1500, Integer.MAX_VALUE);
+
+        private final int lower;
+        private final int upper;
+
+        TransactionValidationResult(int lower, int upper) {
+            this.lower = lower;
+            this.upper = upper;
+        }
+
+        public int getLower() {
+            return lower;
+        }
+
+        public int getUpper() {
+            return upper;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/ITransactionService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.Transaction;
+
+    public interface ITransactionService {
+
+        TransactionResponse validate(Transaction transaction) throws UserNotFoundException;
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class TransactionResponse {
+
+        private TransactionValidationResult result;
+    }
+  learner_created: true
+- name: src/antifraud/domain/AntiFraudCustomErrorMessage.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Builder
+    @Data
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    public class AntiFraudCustomErrorMessage {
+
+        private String timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+    }
+  learner_created: true
+- name: src/antifraud/service/UserDetailsServiceImpl.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.auth.UserDetailsImpl;
+    import antifraud.model.User;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.security.core.userdetails.UserDetails;
+    import org.springframework.security.core.userdetails.UserDetailsService;
+    import org.springframework.security.core.userdetails.UsernameNotFoundException;
+    import org.springframework.stereotype.Service;
+
+    import java.util.Optional;
+
+    @Service
+    public class UserDetailsServiceImpl implements UserDetailsService {
+
+        private final UserService userService;
+
+        @Autowired
+        public UserDetailsServiceImpl(UserService userService) {
+            this.userService = userService;
+        }
+
+        @Override
+        public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+            Optional<User> user = userService.findByUsername(username);
+            if (user.isPresent()) {
+                return new UserDetailsImpl(user.get());
+            } else {
+                throw new UsernameNotFoundException("Not found " + username);
+            }
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserDto.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class UserDto {
+
+        private Long id;
+        private String name;
+        private String username;
+    }
+  learner_created: true
+- name: src/antifraud/service/UserService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.UserDeletionResponse;
+    import antifraud.domain.UserDto;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.mapper.UserMapper;
+    import antifraud.model.User;
+    import antifraud.repository.UserRepository;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.security.core.userdetails.UsernameNotFoundException;
+    import org.springframework.stereotype.Service;
+
+    import javax.transaction.Transactional;
+    import java.util.List;
+    import java.util.Optional;
+
+    @Service
+    public class UserService implements IUserService {
+
+        private final UserRepository userRepository;
+        private final UserMapper userMapper;
+
+        @Autowired
+        public UserService(UserRepository userRepository, UserMapper userMapper) {
+            this.userRepository = userRepository;
+            this.userMapper = userMapper;
+        }
+
+        @Override
+        @Transactional
+        public UserDto create(User user) throws UserAlreadyExistException {
+            var userFromRepo = userRepository.findUsersByUsernameIgnoreCase(user.getUsername());
+
+            if (userFromRepo.isPresent()) {
+                throw new UserAlreadyExistException("User already exist!");
+            }
+
+            user.setRole("ROLE_USER");
+
+            return userMapper.toDto(userRepository.save(user));
+        }
+
+        @Override
+        public Optional<User> findByUsername(String name) throws UsernameNotFoundException {
+            return userRepository.findUsersByUsernameIgnoreCase(name);
+        }
+
+        @Override
+        public List<UserDto> findAll() {
+            return userMapper.toList(userRepository.findAll());
+        }
+
+        @Override
+        @Transactional
+        public UserDeletionResponse remove(String username) throws UserNotFoundException {
+            User user = userRepository.findUsersByUsernameIgnoreCase(username).orElseThrow(() -> new UserNotFoundException("User not found"));
+            userRepository.delete(user);
+            return UserDeletionResponse.builder().status(UserDeletionResponse.DEFAULT_STATUS).username(username).build();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/controller/TransactionController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.Transaction;
+    import antifraud.service.TransactionService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.PostMapping;
+    import org.springframework.web.bind.annotation.RequestBody;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    import org.springframework.web.bind.annotation.RestController;
+
+    import javax.validation.Valid;
+
+    @RestController
+    @RequestMapping(path = "/api/antifraud", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class TransactionController {
+
+        public final TransactionService transactionService;
+
+        @Autowired
+        public TransactionController(TransactionService transactionService) {
+            this.transactionService = transactionService;
+        }
+
+        @PostMapping("/transaction")
+        public ResponseEntity<TransactionResponse> process(@Valid @RequestBody Transaction transaction) throws UserNotFoundException {
+            return ResponseEntity.ok(transactionService.validate(transaction));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/auth/RestAuthenticationEntryPoint.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import org.springframework.security.core.AuthenticationException;
+    import org.springframework.security.web.AuthenticationEntryPoint;
+    import org.springframework.stereotype.Component;
+
+    import javax.servlet.ServletException;
+    import javax.servlet.http.HttpServletRequest;
+    import javax.servlet.http.HttpServletResponse;
+    import java.io.IOException;
+
+    @Component
+    public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+        @Override
+        public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/UserAlreadyExistException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class UserAlreadyExistException extends Exception {
+
+        public UserAlreadyExistException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserDeletionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class UserDeletionResponse {
+
+        private String username;
+        private String status;
+
+        public static final String DEFAULT_STATUS = "Deleted successfully!";
+    }
+  learner_created: true
+- name: src/antifraud/auth/UserDetailsImpl.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import antifraud.model.User;
+    import org.springframework.security.core.GrantedAuthority;
+    import org.springframework.security.core.authority.SimpleGrantedAuthority;
+    import org.springframework.security.core.userdetails.UserDetails;
+
+    import java.util.Collection;
+    import java.util.List;
+
+    public class UserDetailsImpl implements UserDetails {
+
+        private final String username;
+        private final String password;
+        private final List<GrantedAuthority> rolesAndAuthorities;
+
+        public UserDetailsImpl(User user) {
+            this.username = user.getUsername();
+            this.password = user.getPassword();
+            this.rolesAndAuthorities = List.of(new SimpleGrantedAuthority(user.getRole()));
+        }
+
+        @Override
+        public Collection<? extends GrantedAuthority> getAuthorities() {
+            return rolesAndAuthorities;
+        }
+
+        @Override
+        public String getPassword() {
+            return password;
+        }
+
+        @Override
+        public String getUsername() {
+            return username;
+        }
+
+        @Override
+        public boolean isAccountNonExpired() {
+            return true;
+        }
+
+        @Override
+        public boolean isAccountNonLocked() {
+            return true;
+        }
+
+        @Override
+        public boolean isCredentialsNonExpired() {
+            return true;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/UserNotFoundException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class UserNotFoundException extends Exception {
+
+        public UserNotFoundException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/auth/SecurityConfig.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    import org.springframework.http.HttpMethod;
+    import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+    import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+    import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+    import org.springframework.security.config.http.SessionCreationPolicy;
+    import org.springframework.security.core.userdetails.UserDetailsService;
+    import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+    import org.springframework.security.crypto.password.PasswordEncoder;
+
+    @Configuration
+    public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+        private static final int ENCODER_STRENGTH = 13;
+        private final UserDetailsService userDetailsService;
+        private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+
+
+        public SecurityConfig(UserDetailsService userDetailsService,
+                              RestAuthenticationEntryPoint restAuthenticationEntryPoint) {
+            this.userDetailsService = userDetailsService;
+            this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
+        }
+
+        @Override
+        protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+            auth
+                    .userDetailsService(userDetailsService)
+                    .passwordEncoder(getEncoder());
+        }
+
+        public void configure(HttpSecurity http) throws Exception {
+            http.httpBasic()
+                    .authenticationEntryPoint(restAuthenticationEntryPoint) // Handles auth error
+                    .and()
+                    .csrf().disable().headers().frameOptions().disable() // for Postman, the H2 console
+                    .and()
+                    .authorizeRequests() // manage access
+                    .mvcMatchers(HttpMethod.GET, "/api/auth/list").hasRole("USER")
+                    .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole("USER")
+                    .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole("USER")
+                    .antMatchers(HttpMethod.POST, "/api/auth/user").permitAll()
+                    .antMatchers("/actuator/shutdown").permitAll() // needs to run test
+                    // other matchers
+                    .and()
+                    .sessionManagement()
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS); // no session
+        }
+
+        @Bean
+        public PasswordEncoder getEncoder() {
+            return new BCryptPasswordEncoder(ENCODER_STRENGTH);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/TransactionRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.model.Transaction;
+    import org.springframework.data.repository.CrudRepository;
+
+    public interface TransactionRepository extends CrudRepository<Transaction, Long> {
+    }
+  learner_created: true
+- name: src/antifraud/service/IUserService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.UserDeletionResponse;
+    import antifraud.domain.UserDto;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.User;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface IUserService {
+
+        UserDto create(User user) throws UserAlreadyExistException;
+
+        Optional<User> findByUsername(String name);
+
+        List<UserDto> findAll();
+
+        UserDeletionResponse remove(String username) throws UserNotFoundException;
+    }
+  learner_created: true
+- name: src/antifraud/service/TransactionService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.TransactionResponse;
+    import antifraud.domain.TransactionValidationResult;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.Transaction;
+    import antifraud.repository.TransactionRepository;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.security.core.Authentication;
+    import org.springframework.security.core.context.SecurityContextHolder;
+    import org.springframework.security.core.userdetails.UserDetails;
+    import org.springframework.stereotype.Service;
+
+    import javax.transaction.Transactional;
+
+    import static antifraud.domain.TransactionValidationResult.*;
+
+    @Service
+    public class TransactionService implements ITransactionService {
+
+        private final TransactionRepository transactionRepository;
+        private final UserService userService;
+
+        @Autowired
+        public TransactionService(TransactionRepository transactionRepository, UserService userService) {
+            this.transactionRepository = transactionRepository;
+            this.userService = userService;
+        }
+
+        @Override
+        @Transactional
+        public TransactionResponse validate(Transaction transaction) throws UserNotFoundException {
+
+            TransactionValidationResult result;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username;
+
+            if (auth != null) {
+                username = ((UserDetails) auth.getPrincipal()).getUsername();
+                transaction.setUser(userService.findByUsername(username).orElseThrow(() -> new UserNotFoundException("User not found!")));
+            }
+
+            final Long amount = transaction.getAmount();
+            if (amount > ALLOWED.getLower() && amount <= ALLOWED.getUpper()) {
+                result = ALLOWED;
+            } else if (amount >= ALLOWED.getUpper() && amount <= PROHIBITED.getLower()) {
+                result = MANUAL_PROCESSING;
+            } else {
+                result = PROHIBITED;
+            }
+
+            transaction.setStatus(result);
+            transactionRepository.save(transaction);
+
+            return TransactionResponse.builder().result(result).build();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/mapper/UserMapper.java
+  visible: true
+  text: |
+    package antifraud.mapper;
+
+    import antifraud.domain.UserDto;
+    import antifraud.model.User;
+    import org.springframework.stereotype.Component;
+
+    import java.util.List;
+    import java.util.stream.Collectors;
+
+    @Component
+    public class UserMapper {
+
+        public UserDto toDto(User user) {
+            return UserDto.builder().id(user.getId()).name(user.getName()).username(user.getUsername()).build();
+        }
+
+        public List<UserDto> toList(List<User> users) {
+            return users.isEmpty() ? List.of() : users.stream().map(this::toDto).collect(Collectors.toList());
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserRole.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/domain/RoleChangeRequest.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/RoleUpdateException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/domain/AccessUpdateRequest.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/domain/AccessUpdateResponse.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/handler/AntiFraudAccessDeniedHandler.java
+  visible: true
+  learner_created: true
 feedback_link: https://hyperskill.org/learn/step/18069#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Congratulations!
+  time: Sun, 23 Oct 2022 21:19:46 UTC
 record: -1

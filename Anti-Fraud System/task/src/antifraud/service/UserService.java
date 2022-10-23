@@ -1,7 +1,7 @@
 package antifraud.service;
 
-import antifraud.domain.UserDeletionResponse;
-import antifraud.domain.UserDto;
+import antifraud.domain.*;
+import antifraud.exception.RoleUpdateException;
 import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
 import antifraud.mapper.UserMapper;
@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
+
+import static antifraud.domain.UserRole.*;
 
 @Service
 public class UserService implements IUserService {
@@ -30,13 +32,22 @@ public class UserService implements IUserService {
     @Override
     @Transactional
     public UserDto create(User user) throws UserAlreadyExistException {
-        var userFromRepo = userRepository.findUsersByUsernameIgnoreCase(user.getUsername());
 
-        if (userFromRepo.isPresent()) {
-            throw new UserAlreadyExistException("User already exist!");
+        var count = userRepository.count();
+
+        if (count <= 0) {
+            user.setAccountNonLocked(true);
+            user.setRole(ROLE_ADMINISTRATOR);
+        } else {
+            var userFromRepo = userRepository.findUsersByUsernameIgnoreCase(user.getUsername());
+
+            if (userFromRepo.isPresent()) {
+                throw new UserAlreadyExistException("User already exist!");
+            }
+
+            user.setRole(ROLE_MERCHANT);
+
         }
-
-        user.setRole("ROLE_USER");
 
         return userMapper.toDto(userRepository.save(user));
     }
@@ -57,5 +68,46 @@ public class UserService implements IUserService {
         User user = userRepository.findUsersByUsernameIgnoreCase(username).orElseThrow(() -> new UserNotFoundException("User not found"));
         userRepository.delete(user);
         return UserDeletionResponse.builder().status(UserDeletionResponse.DEFAULT_STATUS).username(username).build();
+    }
+
+    @Override
+    @Transactional
+    public UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+
+        User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("User not found!"));
+
+        if (user.isAdmin()) {
+            throw new RoleUpdateException("User can have only one role");
+        }
+
+        if (user.getRole().getDescription().equals(request.getRole())) {
+            throw new UserAlreadyExistException("User already has the role");
+        }
+
+        user.setRole(UserRole.valueOf("ROLE_" + request.getRole()));
+        user = userRepository.save(user);
+
+        return userMapper.toDto(user);
+    }
+
+    @Override
+    @Transactional
+    public AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, RoleUpdateException {
+
+        User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername()).orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (user.isAdmin()) {
+            throw new RoleUpdateException(String.format("%s cannot be blocked", ROLE_ADMINISTRATOR.getDescription()));
+        }
+
+        final String operation = request.getOperation();
+        user.setAccountNonLocked(!"LOCK".equals(operation));
+
+        user = userRepository.save(user);
+
+        return AccessUpdateResponse.builder()
+                .status(String.format("User %s %sed!", user.getUsername(), operation.toLowerCase()))
+                .build();
     }
 }

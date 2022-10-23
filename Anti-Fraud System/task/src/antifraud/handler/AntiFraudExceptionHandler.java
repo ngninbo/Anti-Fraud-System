@@ -1,6 +1,7 @@
 package antifraud.handler;
 
 import antifraud.domain.AntiFraudCustomErrorMessage;
+import antifraud.exception.RoleUpdateException;
 import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -50,5 +51,17 @@ public class AntiFraudExceptionHandler {
                 .path(httpServletRequest.getRequestURI())
                 .build();
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler({RoleUpdateException.class})
+    public ResponseEntity<AntiFraudCustomErrorMessage> handleRoleException(RoleUpdateException e, HttpServletRequest request) {
+        AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                .timestamp(LocalDateTime.now().toString())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message(e.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 }
