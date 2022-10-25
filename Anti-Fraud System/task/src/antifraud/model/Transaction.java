@@ -1,6 +1,8 @@
 package antifraud.model;
 
 import antifraud.domain.TransactionValidationResult;
+import antifraud.util.AntiFraudValidator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.hibernate.Hibernate;
@@ -9,6 +11,7 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import javax.validation.constraints.AssertTrue;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
 
@@ -32,6 +35,12 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     private TransactionValidationResult status;
 
+    @NotEmpty
+    private String ip;
+
+    @NotEmpty
+    private String number;
+
     @ManyToOne
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id")
@@ -40,6 +49,18 @@ public class Transaction {
     @AssertTrue(message = "The transaction amount must be greater than 0")
     public boolean isNonNegativeAmount() {
         return amount != null && amount > 0;
+    }
+
+    @AssertTrue(message = "ip address is not valid")
+    @JsonIgnore
+    public boolean isValidIp() {
+        return ip != null && AntiFraudValidator.isValidIP().test(ip);
+    }
+
+    @AssertTrue(message = "Invalid card number in request!")
+    @JsonIgnore
+    public boolean isValid() {
+        return number != null && AntiFraudValidator.isValidNumber().test(number);
     }
 
     @Override

@@ -1,9 +1,7 @@
 package antifraud.handler;
 
 import antifraud.domain.AntiFraudCustomErrorMessage;
-import antifraud.exception.RoleUpdateException;
-import antifraud.exception.UserAlreadyExistException;
-import antifraud.exception.UserNotFoundException;
+import antifraud.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,8 +27,8 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler({UserAlreadyExistException.class})
-    public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(UserAlreadyExistException exception, HttpServletRequest request) {
+    @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class, CardAlreadyExistException.class})
+    public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(Exception exception, HttpServletRequest request) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
                 .status(HttpStatus.CONFLICT.value())
@@ -41,8 +39,8 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler({UserNotFoundException.class})
-    public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(UserNotFoundException exception, HttpServletRequest httpServletRequest) {
+    @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class, CardNotFoundException.class})
+    public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(Exception exception, HttpServletRequest httpServletRequest) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
                 .status(HttpStatus.NOT_FOUND.value())

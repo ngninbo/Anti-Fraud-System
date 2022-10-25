@@ -3,7 +3,7 @@ hyperskill_project:
   ide_files: https://stepik.org/media/attachments/lesson/657120/additional_files.json
   is_template_based: false
   use_ide: true
-update_date: Sun, 23 Oct 2022 16:17:17 UTC
+update_date: Tue, 25 Oct 2022 05:35:21 UTC
 stages:
 - id: 1161
   step: 18067
@@ -16,7 +16,7 @@ stages:
   is_completed: true
 - id: 1164
   step: 18070
-  is_completed: false
+  is_completed: true
 - id: 1165
   step: 18071
   is_completed: false
@@ -304,10 +304,10 @@ topics:
   1:
   - title: H2 database
     theory_id: 8762
-  - title: Custom User Store
-    theory_id: 16191
   - title: HTTP Basic Auth
     theory_id: 7778
+  - title: Custom User Store
+    theory_id: 16191
   - title: Introduction to databases
     theory_id: 8497
   - title: XML

@@ -51,6 +51,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests() // manage access
                 .mvcMatchers(HttpMethod.GET, "/api/auth/list").hasAnyRole(ROLE_ADMINISTRATOR.getDescription(), ROLE_SUPPORT.getDescription())
                 .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole(ROLE_MERCHANT.getDescription())
+                .mvcMatchers("/api/antifraud/suspicious-ip", "/api/antifraud/suspicious-ip/**", "/api/antifraud/stolencard", "/api/antifraud/stolencard/**").hasRole(ROLE_SUPPORT.getDescription())
                 .mvcMatchers(HttpMethod.PUT, "/api/auth/access", "/api/auth/role").hasRole(ROLE_ADMINISTRATOR.getDescription())
                 .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole(ROLE_ADMINISTRATOR.getDescription())
                 .antMatchers(HttpMethod.POST, "/api/auth/user").permitAll()

@@ -9,4 +9,6 @@ import lombok.*;
 public class TransactionResponse {
 
     private TransactionValidationResult result;
+
+    private String info;
 }
