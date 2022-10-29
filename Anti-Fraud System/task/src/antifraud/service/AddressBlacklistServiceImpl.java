@@ -4,47 +4,46 @@ import antifraud.domain.AddressDeletionResponse;
 import antifraud.exception.AddressAlreadyExistException;
 import antifraud.exception.AddressNotFoundException;
 import antifraud.model.Address;
-import antifraud.repository.AddressRepository;
+import antifraud.repository.AddressBlacklistRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.List;
-import java.util.Optional;
 
 @Service
-public class AddressServiceImpl implements AddressService {
+public class AddressBlacklistServiceImpl implements AddressBlacklistService {
 
-    private final AddressRepository addressRepository;
+    private final AddressBlacklistRepository addressBlacklistRepository;
 
     @Autowired
-    public AddressServiceImpl(AddressRepository addressRepository) {
-        this.addressRepository = addressRepository;
+    public AddressBlacklistServiceImpl(AddressBlacklistRepository addressBlacklistRepository) {
+        this.addressBlacklistRepository = addressBlacklistRepository;
     }
 
     @Override
     public List<Address> findAll() {
-        return addressRepository.findAll();
+        return addressBlacklistRepository.findAll();
     }
 
     @Override
     @Transactional
     public Address create(Address address) throws AddressAlreadyExistException {
 
-        var addressOptional = addressRepository.findByIp(address.getIp());
+        var addressOptional = addressBlacklistRepository.findByIp(address.getIp());
 
         if (addressOptional.isPresent()) {
             throw new AddressAlreadyExistException("IP address already exist!");
         }
 
-        return addressRepository.save(address);
+        return addressBlacklistRepository.save(address);
     }
 
     @Override
     @Transactional
     public AddressDeletionResponse removeIP(String ip) throws AddressNotFoundException {
-        Address address = addressRepository.findByIp(ip).orElseThrow(() -> new AddressNotFoundException("IP address not found!"));
-        addressRepository.delete(address);
+        Address address = addressBlacklistRepository.findByIp(ip).orElseThrow(() -> new AddressNotFoundException("IP address not found!"));
+        addressBlacklistRepository.delete(address);
 
         String status = String.format("IP %s successfully removed!", ip);
 
@@ -52,7 +51,7 @@ public class AddressServiceImpl implements AddressService {
     }
 
     @Override
-    public Optional<Address> findByIP(String ip) {
-        return addressRepository.findByIp(ip);
+    public boolean isBlacklistedIp(String ip) {
+        return this.addressBlacklistRepository.findByIp(ip).isPresent();
     }
 }

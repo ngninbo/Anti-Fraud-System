@@ -22,6 +22,8 @@
       <module name="Anti-Fraud_System.Topics-String-Check_burgs.main" target="11" />
       <module name="Anti-Fraud_System.Topics-String-Replacing_'a'_with_'b'.main" target="11" />
       <module name="Anti-Fraud_System.Topics-String-Theory.main" target="11" />
+      <module name="Anti-Fraud_System.Topics-The_keyword_super-Fix_the_non-compiled_hierarchy.main" target="11" />
+      <module name="Anti-Fraud_System.Topics-The_keyword_super-Theory.main" target="11" />
       <module name="Anti-Fraud_System.util.main" target="11" />
     </bytecodeTargetLevel>
   </component>

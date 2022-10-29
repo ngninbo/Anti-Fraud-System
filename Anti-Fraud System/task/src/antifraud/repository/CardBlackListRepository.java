@@ -6,7 +6,7 @@ import org.springframework.data.repository.CrudRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface CardRepository extends CrudRepository<Card, Long> {
+public interface CardBlackListRepository extends CrudRepository<Card, Long> {
 
     Optional<Card> findByNumber(String number);
 

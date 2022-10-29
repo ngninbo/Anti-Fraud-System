@@ -1,8 +1,10 @@
 package antifraud.controller;
 
+import antifraud.domain.TransactionDto;
 import antifraud.domain.TransactionResponse;
+import antifraud.exception.InvalidRegionException;
+import antifraud.exception.TransactionDateParsingException;
 import antifraud.exception.UserNotFoundException;
-import antifraud.model.Transaction;
 import antifraud.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,7 +30,8 @@ public class TransactionController {
     }
 
     @PostMapping("/transaction")
-    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody Transaction transaction) throws UserNotFoundException {
-        return ResponseEntity.ok(transactionService.validate(transaction));
+    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody TransactionDto transactionDto)
+            throws UserNotFoundException, InvalidRegionException, TransactionDateParsingException {
+        return ResponseEntity.ok(transactionService.validate(transactionDto));
     }
 }

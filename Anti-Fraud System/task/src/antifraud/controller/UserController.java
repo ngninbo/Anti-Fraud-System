@@ -1,6 +1,7 @@
 package antifraud.controller;
 
 import antifraud.domain.*;
+import antifraud.exception.AdminLockException;
 import antifraud.exception.RoleUpdateException;
 import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
@@ -55,7 +56,7 @@ public class UserController {
 
     @PutMapping("/access")
     public ResponseEntity<AccessUpdateResponse> updateAccess(@Valid @RequestBody AccessUpdateRequest request)
-            throws UserNotFoundException, RoleUpdateException {
+            throws UserNotFoundException, AdminLockException {
         return ResponseEntity.ok(userService.updateAccess(request));
     }
 }

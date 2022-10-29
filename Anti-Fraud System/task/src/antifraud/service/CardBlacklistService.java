@@ -8,11 +8,11 @@ import antifraud.model.Card;
 import java.util.List;
 import java.util.Optional;
 
-public interface CardService {
+public interface CardBlacklistService {
 
     Card create(Card card) throws CardAlreadyExistException;
     CardDeletionResponse removeByNumber(String number) throws CardNotFoundException;
     List<Card> findAll();
 
-    Optional<Card> findByNUmber(String number);
+    boolean isBlacklistedCardNumber(String number);
 }

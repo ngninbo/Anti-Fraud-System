@@ -6,14 +6,13 @@ import antifraud.exception.AddressNotFoundException;
 import antifraud.model.Address;
 
 import java.util.List;
-import java.util.Optional;
 
-public interface AddressService {
+public interface AddressBlacklistService {
 
     List<Address> findAll();
     Address create(Address address) throws AddressAlreadyExistException;
 
     AddressDeletionResponse removeIP(String ip) throws AddressNotFoundException;
 
-    Optional<Address> findByIP(String ip);
+    boolean isBlacklistedIp(String ip);
 }

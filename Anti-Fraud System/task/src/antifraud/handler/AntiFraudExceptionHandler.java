@@ -51,13 +51,13 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler({RoleUpdateException.class})
-    public ResponseEntity<AntiFraudCustomErrorMessage> handleRoleException(RoleUpdateException e, HttpServletRequest request) {
+    @ExceptionHandler({RoleUpdateException.class, AdminLockException.class, InvalidRegionException.class, TransactionDateParsingException.class})
+    public ResponseEntity<AntiFraudCustomErrorMessage> handleRoleException(Exception e, HttpServletRequest request) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
                 .status(HttpStatus.BAD_REQUEST.value())
                 .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-                .message(e.getMessage())
+                .message(e.getLocalizedMessage())
                 .path(request.getRequestURI())
                 .build();
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);

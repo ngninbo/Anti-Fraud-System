@@ -4,10 +4,9 @@ import antifraud.domain.CardDeletionResponse;
 import antifraud.exception.CardAlreadyExistException;
 import antifraud.exception.CardNotFoundException;
 import antifraud.model.Card;
-import antifraud.service.CardService;
+import antifraud.service.CardBlacklistService;
 import antifraud.util.AntiFraudValidator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -21,16 +20,16 @@ import java.util.List;
 @Validated
 public class CardController {
 
-    private final CardService cardService;
+    private final CardBlacklistService cardBlacklistService;
 
     @Autowired
-    public CardController(CardService cardService) {
-        this.cardService = cardService;
+    public CardController(CardBlacklistService cardBlacklistService) {
+        this.cardBlacklistService = cardBlacklistService;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Card> create(@Valid @RequestBody Card card) throws CardAlreadyExistException {
-        return ResponseEntity.ok(cardService.create(card));
+        return ResponseEntity.ok(cardBlacklistService.create(card));
     }
 
     @DeleteMapping("/{number}")
@@ -38,11 +37,11 @@ public class CardController {
         if (AntiFraudValidator.isValidNumber().negate().test(number)) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(cardService.removeByNumber(number));
+        return ResponseEntity.ok(cardBlacklistService.removeByNumber(number));
     }
 
     @GetMapping
     public ResponseEntity<List<Card>> fetch() {
-        return ResponseEntity.ok(cardService.findAll());
+        return ResponseEntity.ok(cardBlacklistService.findAll());
     }
 }

@@ -21,6 +21,8 @@
             <option value="$PROJECT_DIR$/Topics/String/Check burgs" />
             <option value="$PROJECT_DIR$/Topics/String/Replacing 'a' with 'b'" />
             <option value="$PROJECT_DIR$/Topics/String/Theory" />
+            <option value="$PROJECT_DIR$/Topics/The keyword super/Fix the non-compiled hierarchy" />
+            <option value="$PROJECT_DIR$/Topics/The keyword super/Theory" />
             <option value="$PROJECT_DIR$/util" />
           </set>
         </option>

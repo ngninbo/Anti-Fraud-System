@@ -1,0 +1,44 @@
+package antifraud.domain;
+
+import antifraud.util.AntiFraudValidator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+
+import javax.validation.constraints.AssertTrue;
+import java.util.Arrays;
+
+@Data
+@AllArgsConstructor
+@RequiredArgsConstructor
+public class TransactionDto {
+
+    private Long amount;
+    private String ip;
+    private String number;
+    private String region;
+    private String date;
+
+    @AssertTrue(message = "The transaction amount must be greater than 0")
+    public boolean isNonNegativeAmount() {
+        return amount != null && amount > 0;
+    }
+
+    @AssertTrue(message = "ip address is not valid")
+    @JsonIgnore
+    public boolean isValidIp() {
+        return ip != null && AntiFraudValidator.isValidIP().test(ip);
+    }
+
+    @AssertTrue(message = "Invalid card number in request!")
+    @JsonIgnore
+    public boolean isValid() {
+        return number != null && AntiFraudValidator.isValidNumber().test(number);
+    }
+
+    @AssertTrue(message = "Wrong region!")
+    public boolean isValidRegion() {
+        return region != null && Arrays.stream(Region.values()).anyMatch(el -> el.name().equals(region));
+    }
+}
