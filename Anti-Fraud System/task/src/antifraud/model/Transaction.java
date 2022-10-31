@@ -2,6 +2,8 @@ package antifraud.model;
 
 import antifraud.domain.Region;
 import antifraud.domain.TransactionValidationResult;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.OnDelete;
@@ -25,13 +27,11 @@ public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "transaction_sequence")
+    @JsonProperty(value = "transactionId")
     private Long id;
 
     @NotNull
     private Long amount;
-
-    @Enumerated(EnumType.STRING)
-    private TransactionValidationResult status;
 
     @NotEmpty
     private String ip;
@@ -44,9 +44,16 @@ public class Transaction {
 
     private LocalDateTime date;
 
+    @Enumerated(EnumType.STRING)
+    private TransactionValidationResult result;
+
+    @Enumerated(EnumType.STRING)
+    private TransactionValidationResult feedback;
+
     @ManyToOne
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     public Transaction(Long amount, String ip, String number, Region region, LocalDateTime date) {
@@ -55,6 +62,11 @@ public class Transaction {
         this.number = number;
         this.region = region;
         this.date = date;
+    }
+
+    @JsonProperty("feedback")
+    public String getFeedbackString() {
+        return feedback == null ? "" : feedback.name();
     }
 
     @Override

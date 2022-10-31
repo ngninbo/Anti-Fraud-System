@@ -27,7 +27,7 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class, CardAlreadyExistException.class})
+    @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class, CardAlreadyExistException.class, TransactionFeedbackAlreadyExistException.class})
     public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(Exception exception, HttpServletRequest request) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
@@ -39,7 +39,7 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class, CardNotFoundException.class})
+    @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class, CardNotFoundException.class, TransactionNotFoundException.class})
     public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(Exception exception, HttpServletRequest httpServletRequest) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
@@ -51,7 +51,8 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler({RoleUpdateException.class, AdminLockException.class, InvalidRegionException.class, TransactionDateParsingException.class})
+    @ExceptionHandler({RoleUpdateException.class, AdminLockException.class, InvalidRegionException.class,
+            TransactionDateParsingException.class, IllegalFeedbackException.class, InvalidNumberException.class})
     public ResponseEntity<AntiFraudCustomErrorMessage> handleRoleException(Exception e, HttpServletRequest request) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
@@ -61,5 +62,17 @@ public class AntiFraudExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({TransactionFeedbackUpdateException.class})
+    public ResponseEntity<AntiFraudCustomErrorMessage> handleUnprocessableEntity(TransactionFeedbackUpdateException e, HttpServletRequest request) {
+        AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                .timestamp(LocalDateTime.now().toString())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error(HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase())
+                .message(e.getLocalizedMessage())
+                .path(request.getRequestURI())
+                .build();
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 }

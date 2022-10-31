@@ -1993,6 +1993,1844 @@ files:
         };
     }
   learner_created: false
+- name: src/antifraud/handler/AntiFraudExceptionHandler.java
+  visible: true
+  text: |
+    package antifraud.handler;
+
+    import antifraud.domain.AntiFraudCustomErrorMessage;
+    import antifraud.exception.*;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.web.bind.MethodArgumentNotValidException;
+    import org.springframework.web.bind.annotation.ControllerAdvice;
+    import org.springframework.web.bind.annotation.ExceptionHandler;
+
+    import javax.servlet.http.HttpServletRequest;
+    import java.time.LocalDateTime;
+
+    @ControllerAdvice
+    public class AntiFraudExceptionHandler {
+
+        @ExceptionHandler({MethodArgumentNotValidException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleValidationError(MethodArgumentNotValidException e,
+                                                                                 HttpServletRequest request) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                    .message(e.getBindingResult().getAllErrors().get(0).getDefaultMessage())
+                    .path(request.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        }
+
+        @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class, CardAlreadyExistException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(Exception exception, HttpServletRequest request) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.CONFLICT.value())
+                    .error(HttpStatus.CONFLICT.getReasonPhrase())
+                    .message(exception.getMessage())
+                    .path(request.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+        }
+
+        @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class, CardNotFoundException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(Exception exception, HttpServletRequest httpServletRequest) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.NOT_FOUND.value())
+                    .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                    .message(exception.getMessage())
+                    .path(httpServletRequest.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+        }
+
+        @ExceptionHandler({RoleUpdateException.class, AdminLockException.class, InvalidRegionException.class, TransactionDateParsingException.class})
+        public ResponseEntity<AntiFraudCustomErrorMessage> handleRoleException(Exception e, HttpServletRequest request) {
+            AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
+                    .timestamp(LocalDateTime.now().toString())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                    .message(e.getLocalizedMessage())
+                    .path(request.getRequestURI())
+                    .build();
+            return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/AddressNotFoundException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class AddressNotFoundException extends Exception {
+
+        public AddressNotFoundException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/RoleUpdateException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class RoleUpdateException extends Exception {
+
+        public RoleUpdateException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/User.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import antifraud.domain.UserRole;
+    import lombok.*;
+    import org.hibernate.Hibernate;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.NotEmpty;
+    import java.util.Objects;
+    import java.util.Set;
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    @Entity
+    @Table(name = "users")
+    @SequenceGenerator(name = "sequence", sequenceName = "UserSeq")
+    public class User {
+
+        @Id
+        @Column(name = "user_id")
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sequence")
+        private Long id;
+        @NotEmpty(message = "name must not be empty")
+        private String name;
+        @NotEmpty(message = "username must not be empty")
+        private String username;
+        @NotEmpty(message = "password must not be empty")
+        private String password;
+
+        @Enumerated(EnumType.STRING)
+        private UserRole role;
+
+        private boolean accountNonLocked;
+
+        @OneToMany(mappedBy="user", orphanRemoval = true)
+        private Set<Transaction> transactions;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            User user = (User) o;
+            return id != null && Objects.equals(id, user.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+
+        public boolean isAdmin() {
+            return UserRole.ROLE_ADMINISTRATOR.equals(role);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/AdminLockException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class AdminLockException extends Exception {
+        public AdminLockException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionDto.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import antifraud.util.AntiFraudValidator;
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import lombok.AllArgsConstructor;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    import javax.validation.constraints.AssertTrue;
+    import java.util.Arrays;
+
+    @Data
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    public class TransactionDto {
+
+        private Long amount;
+        private String ip;
+        private String number;
+        private String region;
+        private String date;
+
+        @AssertTrue(message = "The transaction amount must be greater than 0")
+        public boolean isNonNegativeAmount() {
+            return amount != null && amount > 0;
+        }
+
+        @AssertTrue(message = "ip address is not valid")
+        @JsonIgnore
+        public boolean isValidIp() {
+            return ip != null && AntiFraudValidator.isValidIP().test(ip);
+        }
+
+        @AssertTrue(message = "Invalid card number in request!")
+        @JsonIgnore
+        public boolean isValid() {
+            return number != null && AntiFraudValidator.isValidNumber().test(number);
+        }
+
+        @AssertTrue(message = "Wrong region!")
+        public boolean isValidRegion() {
+            return region != null && Arrays.stream(Region.values()).anyMatch(el -> el.name().equals(region));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserRole.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    public enum UserRole {
+
+        ROLE_MERCHANT("MERCHANT"),
+        ROLE_ADMINISTRATOR("ADMINISTRATOR"),
+        ROLE_SUPPORT("SUPPORT");
+
+        private final String description;
+
+        UserRole(String description) {
+            this.description = description;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/TransactionValidationResult.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    public enum TransactionValidationResult {
+
+        ALLOWED(0, 200),
+        MANUAL_PROCESSING(200, 1500),
+        PROHIBITED(1500, Integer.MAX_VALUE);
+
+        private final int lower;
+        private final int upper;
+
+        TransactionValidationResult(int lower, int upper) {
+            this.lower = lower;
+            this.upper = upper;
+        }
+
+        public int getLower() {
+            return lower;
+        }
+
+        public int getUpper() {
+            return upper;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/AntiFraudCustomErrorMessage.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Builder
+    @Data
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    public class AntiFraudCustomErrorMessage {
+
+        private String timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+    }
+  learner_created: true
+- name: src/antifraud/domain/UserDto.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class UserDto {
+
+        private Long id;
+        private String name;
+        private String username;
+        private String role;
+    }
+  learner_created: true
+- name: src/antifraud/controller/TransactionController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.TransactionDto;
+    import antifraud.domain.TransactionResponse;
+    import antifraud.exception.InvalidRegionException;
+    import antifraud.exception.TransactionDateParsingException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.service.TransactionService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.PostMapping;
+    import org.springframework.web.bind.annotation.RequestBody;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    import org.springframework.web.bind.annotation.RestController;
+
+    import javax.validation.Valid;
+
+    @RestController
+    @RequestMapping(path = "/api/antifraud", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class TransactionController {
+
+        public final TransactionService transactionService;
+
+        @Autowired
+        public TransactionController(TransactionService transactionService) {
+            this.transactionService = transactionService;
+        }
+
+        @PostMapping("/transaction")
+        public ResponseEntity<TransactionResponse> process(@Valid @RequestBody TransactionDto transactionDto)
+                throws UserNotFoundException, InvalidRegionException, TransactionDateParsingException {
+            return ResponseEntity.ok(transactionService.validate(transactionDto));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/auth/RestAuthenticationEntryPoint.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import org.springframework.security.core.AuthenticationException;
+    import org.springframework.security.web.AuthenticationEntryPoint;
+    import org.springframework.stereotype.Component;
+
+    import javax.servlet.ServletException;
+    import javax.servlet.http.HttpServletRequest;
+    import javax.servlet.http.HttpServletResponse;
+    import java.io.IOException;
+
+    @Component
+    public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+        @Override
+        public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
+        }
+    }
+  learner_created: true
+- name: src/antifraud/domain/Region.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import antifraud.exception.InvalidRegionException;
+
+    public enum Region {
+
+        EAP("East Asia and Pacific"),
+        ECA("Europe and Central Asia"),
+        HIC("High-Income countries"),
+        LAC("Latin America and the Caribbean"),
+        MENA("The Middle East and North Africa"),
+        SA("South Asia"),
+        SSA("Sub-Saharan Africa");
+
+        private final String description;
+
+        Region(String description) {
+            this.description = description;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public static Region toRegion(String region) throws InvalidRegionException {
+            switch (region) {
+                case "SA":
+                    return SA;
+                case "EAP":
+                    return EAP;
+                case "ECA":
+                    return ECA;
+                case "HIC":
+                    return HIC;
+                case "LAC":
+                    return LAC;
+                case "SSA":
+                    return SSA;
+                case "MENA":
+                    return MENA;
+                default:
+                    throw new InvalidRegionException("Region is invalid!");
+            }
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/TransactionDateParsingException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class TransactionDateParsingException extends Exception {
+        public TransactionDateParsingException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/auth/UserDetailsImpl.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import antifraud.model.User;
+    import org.springframework.security.core.GrantedAuthority;
+    import org.springframework.security.core.authority.SimpleGrantedAuthority;
+    import org.springframework.security.core.userdetails.UserDetails;
+
+    import java.util.Collection;
+    import java.util.List;
+
+    public class UserDetailsImpl implements UserDetails {
+
+        private final String username;
+        private final String password;
+        private final boolean accountNonLocked;
+        private final List<GrantedAuthority> rolesAndAuthorities;
+
+        public UserDetailsImpl(User user) {
+            this.username = user.getUsername();
+            this.password = user.getPassword();
+            this.accountNonLocked = user.isAccountNonLocked();
+            this.rolesAndAuthorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
+        }
+
+        @Override
+        public Collection<? extends GrantedAuthority> getAuthorities() {
+            return rolesAndAuthorities;
+        }
+
+        @Override
+        public String getPassword() {
+            return password;
+        }
+
+        @Override
+        public String getUsername() {
+            return username;
+        }
+
+        @Override
+        public boolean isAccountNonExpired() {
+            return true;
+        }
+
+        @Override
+        public boolean isAccountNonLocked() {
+            return accountNonLocked;
+        }
+
+        @Override
+        public boolean isCredentialsNonExpired() {
+            return true;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+    }
+  learner_created: true
+- name: src/antifraud/auth/SecurityConfig.java
+  visible: true
+  text: |
+    package antifraud.auth;
+
+    import antifraud.handler.AntiFraudAccessDeniedHandler;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    import org.springframework.http.HttpMethod;
+    import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+    import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+    import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+    import org.springframework.security.config.http.SessionCreationPolicy;
+    import org.springframework.security.core.userdetails.UserDetailsService;
+    import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+    import org.springframework.security.crypto.password.PasswordEncoder;
+
+    import static antifraud.domain.UserRole.*;
+
+    @Configuration
+    public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+        private static final int ENCODER_STRENGTH = 13;
+        private final UserDetailsService userDetailsService;
+        private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+        private final AntiFraudAccessDeniedHandler accessDeniedHandler;
+
+
+        @Autowired
+        public SecurityConfig(UserDetailsService userDetailsService,
+                              RestAuthenticationEntryPoint restAuthenticationEntryPoint, AntiFraudAccessDeniedHandler accessDeniedHandler) {
+            this.userDetailsService = userDetailsService;
+            this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
+            this.accessDeniedHandler = accessDeniedHandler;
+        }
+
+        @Override
+        protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+            auth
+                    .userDetailsService(userDetailsService)
+                    .passwordEncoder(getEncoder());
+        }
+
+        public void configure(HttpSecurity http) throws Exception {
+            http
+                    .exceptionHandling().accessDeniedHandler(accessDeniedHandler)
+                    .and()
+                    .httpBasic()
+                    .authenticationEntryPoint(restAuthenticationEntryPoint) // Handles auth error
+                    .and()
+                    .csrf().disable().headers().frameOptions().disable() // for Postman, the H2 console
+                    .and()
+                    .authorizeRequests() // manage access
+                    .mvcMatchers(HttpMethod.GET, "/api/auth/list").hasAnyRole(ROLE_ADMINISTRATOR.getDescription(), ROLE_SUPPORT.getDescription())
+                    .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole(ROLE_MERCHANT.getDescription())
+                    .mvcMatchers("/api/antifraud/suspicious-ip", "/api/antifraud/suspicious-ip/**", "/api/antifraud/stolencard", "/api/antifraud/stolencard/**").hasRole(ROLE_SUPPORT.getDescription())
+                    .mvcMatchers(HttpMethod.PUT, "/api/auth/access", "/api/auth/role").hasRole(ROLE_ADMINISTRATOR.getDescription())
+                    .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole(ROLE_ADMINISTRATOR.getDescription())
+                    .antMatchers(HttpMethod.POST, "/api/auth/user").permitAll()
+                    .antMatchers("/actuator/shutdown").permitAll() // needs to run test
+                    // other matchers
+                    .and()
+                    .sessionManagement()
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS); // no session
+        }
+
+        @Bean
+        public PasswordEncoder getEncoder() {
+            return new BCryptPasswordEncoder(ENCODER_STRENGTH);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/TransactionService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.Region;
+    import antifraud.domain.TransactionDto;
+    import antifraud.domain.TransactionResponse;
+    import antifraud.exception.InvalidRegionException;
+    import antifraud.exception.TransactionDateParsingException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.Transaction;
+
+    import java.time.LocalDateTime;
+    import java.util.List;
+
+    public interface TransactionService {
+
+        TransactionResponse validate(TransactionDto transaction) throws UserNotFoundException, InvalidRegionException, TransactionDateParsingException;
+
+        List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime before, LocalDateTime now, Region region);
+
+        List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
+    }
+  learner_created: true
+- name: src/antifraud/controller/UserController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.*;
+    import antifraud.exception.AdminLockException;
+    import antifraud.exception.RoleUpdateException;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.User;
+    import antifraud.service.UserService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.security.crypto.password.PasswordEncoder;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.*;
+
+    import javax.validation.Valid;
+    import java.util.List;
+
+    @RestController
+    @RequestMapping(path = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class UserController {
+
+        private final UserService userService;
+        private final PasswordEncoder encoder;
+
+        @Autowired
+        public UserController(UserService userService, PasswordEncoder encoder) {
+            this.userService = userService;
+            this.encoder = encoder;
+        }
+
+        @PostMapping("/user")
+        public ResponseEntity<UserDto> create(@Valid @RequestBody User user) throws UserAlreadyExistException {
+            user.setPassword(encoder.encode(user.getPassword()));
+            return new ResponseEntity<>(userService.create(user), HttpStatus.CREATED);
+        }
+
+        @GetMapping("/list")
+        public ResponseEntity<List<UserDto>> fetchAll() {
+            return ResponseEntity.ok(userService.findAll());
+        }
+
+        @DeleteMapping("/user/{username}")
+        public ResponseEntity<UserDeletionResponse> remove(@PathVariable String username) throws UserNotFoundException {
+            return ResponseEntity.ok(userService.remove(username));
+        }
+
+        @PutMapping("/role")
+        public ResponseEntity<UserDto> changeRole(@Valid @RequestBody RoleChangeRequest request)
+                throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+            return ResponseEntity.ok(userService.update(request));
+        }
+
+        @PutMapping("/access")
+        public ResponseEntity<AccessUpdateResponse> updateAccess(@Valid @RequestBody AccessUpdateRequest request)
+                throws UserNotFoundException, AdminLockException {
+            return ResponseEntity.ok(userService.updateAccess(request));
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/TransactionServiceImpl.java
+  visible: true
+  text: "package antifraud.service;\n\nimport antifraud.domain.Region;\nimport antifraud.domain.TransactionDto;\n\
+    import antifraud.domain.TransactionResponse;\nimport antifraud.domain.TransactionValidationResult;\n\
+    import antifraud.exception.InvalidRegionException;\nimport antifraud.exception.TransactionDateParsingException;\n\
+    import antifraud.exception.UserNotFoundException;\nimport antifraud.model.Transaction;\n\
+    import antifraud.repository.TransactionRepository;\nimport org.springframework.beans.factory.annotation.Autowired;\n\
+    import org.springframework.security.core.Authentication;\nimport org.springframework.security.core.context.SecurityContextHolder;\n\
+    import org.springframework.security.core.userdetails.UserDetails;\nimport org.springframework.stereotype.Service;\n\
+    \nimport javax.transaction.Transactional;\n\nimport java.time.DateTimeException;\n\
+    import java.time.LocalDateTime;\nimport java.util.List;\n\nimport static antifraud.domain.TransactionValidationResult.*;\n\
+    \n@Service\npublic class TransactionServiceImpl implements TransactionService\
+    \ {\n\n    private final TransactionRepository transactionRepository;\n    private\
+    \ final UserServiceImpl userService;\n    private final AddressBlacklistService\
+    \ addressBlacklistService;\n    private final CardBlacklistService cardBlacklistService;\n\
+    \n    @Autowired\n    public TransactionServiceImpl(TransactionRepository transactionRepository,\
+    \ UserServiceImpl userService, AddressBlacklistService addressBlacklistService,\
+    \ CardBlacklistService cardBlacklistService) {\n        this.transactionRepository\
+    \ = transactionRepository;\n        this.userService = userService;\n        this.addressBlacklistService\
+    \ = addressBlacklistService;\n        this.cardBlacklistService = cardBlacklistService;\n\
+    \    }\n\n    @Override\n    @Transactional\n    public TransactionResponse validate(TransactionDto\
+    \ dto) throws UserNotFoundException, InvalidRegionException, DateTimeException,\
+    \ TransactionDateParsingException {\n        Authentication auth = SecurityContextHolder.getContext().getAuthentication();\n\
+    \        String username;\n\n        final Region region = Region.toRegion(dto.getRegion());\n\
+    \        final LocalDateTime date;\n        try {\n            date = LocalDateTime.parse(dto.getDate());\n\
+    \        } catch (Exception e) {\n            throw new TransactionDateParsingException(\"\
+    Invalid date format\");\n        }\n        Transaction transaction = new Transaction(dto.getAmount(),\
+    \ dto.getIp(), dto.getNumber(), region, date);\n\n        if (auth != null) {\n\
+    \            username = ((UserDetails) auth.getPrincipal()).getUsername();\n \
+    \           transaction.setUser(userService.findByUsername(username).orElseThrow(()\
+    \ -> new UserNotFoundException(\"User not found!\")));\n        }\n\n        boolean\
+    \ isBlackListedAddress = addressBlacklistService.isBlacklistedIp(transaction.getIp());\n\
+    \        boolean isBlackListedCardNumber = cardBlacklistService.isBlacklistedCardNumber(transaction.getNumber());\n\
+    \        LocalDateTime lastHour = date.minusHours(1);\n        var  numTransactionsNotInRegion\
+    \ = this.findAlLByNumberAndDateBetweenAndRegionNot(transaction.getNumber(), lastHour,\
+    \ date, region).stream().map(Transaction::getRegion).distinct().count();\n   \
+    \     var numTransactionsNotWithIp = this.findAllByNumberAndDateIsBetweenAndIpNot(transaction.getNumber(),\
+    \ lastHour, date, transaction.getIp()).stream().map(Transaction::getIp).distinct().count();\n\
+    \        \n        var result = getResult(transaction.getAmount());\n        var\
+    \ tb = TransactionResponse.builder();\n\n        final boolean isTransactionFromTwoDifferentRegions\
+    \ = numTransactionsNotInRegion == 2;\n        final boolean isTransactionFromTwoDifferentIps\
+    \ = numTransactionsNotWithIp == 2;\n        final boolean isTransactionFromMoreThanTwoDifferentRegions\
+    \ = numTransactionsNotInRegion > 2;\n        final boolean isTransactionFromMoreThanTwoDifferentIps\
+    \ = numTransactionsNotWithIp > 2;\n        \n        switch (result) {\n     \
+    \       case ALLOWED:\n                if(isBlackListedAddress && isBlackListedCardNumber\
+    \ && isTransactionFromMoreThanTwoDifferentRegions && isTransactionFromMoreThanTwoDifferentIps)\
+    \ {\n                    tb.result(PROHIBITED).info(\"card-number, ip, ip-correlation,\
+    \ region-correlation\");\n                } else if (isTransactionFromMoreThanTwoDifferentRegions\
+    \ && isTransactionFromMoreThanTwoDifferentIps) {\n                    tb.result(PROHIBITED).info(\"\
+    ip-correlation, region-correlation\");\n                } else if (isBlackListedAddress\
+    \ && isBlackListedCardNumber) {\n                    tb.result(PROHIBITED).info(\"\
+    card-number, ip\");\n                } else if (isTransactionFromTwoDifferentRegions\
+    \ && isTransactionFromTwoDifferentIps) {\n                    tb.result(MANUAL_PROCESSING).info(\"\
+    ip-correlation, region-correlation\");\n                } else if (isTransactionFromTwoDifferentRegions)\
+    \ {\n                    tb.result(MANUAL_PROCESSING).info(\"region-correlation\"\
+    );\n                } else if (isTransactionFromTwoDifferentIps) {\n         \
+    \           tb.result(MANUAL_PROCESSING).info(\"ip-correlation\");\n         \
+    \       } else if (isTransactionFromMoreThanTwoDifferentRegions) {\n         \
+    \           tb.result(PROHIBITED).info(\"region-correlation\");\n            \
+    \    } else if (isTransactionFromMoreThanTwoDifferentIps) {\n                \
+    \    tb.result(PROHIBITED).info(\"ip-correlation\");\n                } else if\
+    \ (isBlackListedCardNumber) {\n                    tb.result(PROHIBITED).info(\"\
+    card-number\");\n                } else if (isBlackListedAddress) {\n        \
+    \            tb.result(PROHIBITED).info(\"ip\");\n                } else {\n \
+    \                   tb.result(result).info(\"none\");\n                }\n   \
+    \             break;\n            case PROHIBITED:\n                tb.result(result);\n\
+    \                if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentRegions\
+    \ && isTransactionFromMoreThanTwoDifferentIps) {\n                    tb.info(\"\
+    amount, card-number, ip, ip-correlation, region-correlation\");\n            \
+    \    } else if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentIps)\
+    \ {\n                    tb.info(\"amount, card-number, ip, ip-correlation\");\n\
+    \                } else if (isBlackListedAddress && isBlackListedCardNumber &&\
+    \ isTransactionFromMoreThanTwoDifferentRegions) {\n                    tb.info(\"\
+    amount, card-number, ip, region-correlation\");\n                } else if (isBlackListedAddress\
+    \ && isBlackListedCardNumber) {\n                    tb.info(\"amount, card-number,\
+    \ ip\");\n                } else if (isBlackListedCardNumber) {\n            \
+    \        tb.info(\"amount, card-number\");\n                } else if (isBlackListedAddress)\
+    \ {\n                    tb.info(\"amount, ip\");\n                } else if (isTransactionFromMoreThanTwoDifferentRegions)\
+    \ {\n                    tb.info(\"amount, region-correlation\");\n          \
+    \      } else if (isTransactionFromMoreThanTwoDifferentIps) {\n              \
+    \      tb.info(\"amount, ip-correlation\");\n                } else {\n      \
+    \              tb.info(\"amount\");\n                }\n                break;\n\
+    \            case MANUAL_PROCESSING:\n                tb.result(MANUAL_PROCESSING);\n\
+    \                if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps\
+    \ && isBlackListedAddress && isBlackListedCardNumber) {\n                    tb.result(PROHIBITED).info(\"\
+    card-number, ip, ip-correlation, region-correlation\");\n                } else\
+    \ if (isBlackListedCardNumber && isBlackListedAddress) {\n                   \
+    \ tb.result(PROHIBITED).info(\"card-number, ip\");\n                } else if\
+    \ (isBlackListedCardNumber) {\n                    tb.result(PROHIBITED).info(\"\
+    card-number\");\n                } else if (isBlackListedAddress) {\n        \
+    \            tb.result(PROHIBITED).info(\"ip\");\n                } else if (isTransactionFromTwoDifferentRegions\
+    \ && isTransactionFromTwoDifferentIps) {\n                    tb.info(\"ip-correlation,\
+    \ region-correlation\");\n                } else if (isTransactionFromTwoDifferentRegions)\
+    \ {\n                    tb.info(\"region-correlation\");\n                } else\
+    \ if (isTransactionFromTwoDifferentIps) {\n                    tb.info(\"ip-correlation\"\
+    );\n                } else if (isTransactionFromMoreThanTwoDifferentRegions) {\n\
+    \                    tb.result(PROHIBITED).info(\"region-correlation\");\n   \
+    \             } else if (isTransactionFromMoreThanTwoDifferentIps) {\n       \
+    \             tb.result(PROHIBITED).info(\"ip-correlation\");\n              \
+    \  } else {\n                    tb.info(\"amount\");\n                }\n   \
+    \             break;\n            default:\n                throw new IllegalStateException(\"\
+    Unexpected value: \" + result);\n        }\n        \n        TransactionResponse\
+    \ resp = tb.build();\n        transaction.setStatus(resp.getResult());\n     \
+    \   transactionRepository.save(transaction);\n        return resp;\n    }\n\n\
+    \    @Override\n    public List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String\
+    \ number, LocalDateTime before, LocalDateTime now, Region region) {\n        return\
+    \ this.transactionRepository.findAlLByNumberAndDateBetweenAndRegionNot(number,\
+    \ before, now, region);\n    }\n\n    @Override\n    public List<Transaction>\
+    \ findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before,\
+    \ LocalDateTime now, String ip) {\n        return this.transactionRepository.findAllByNumberAndDateIsBetweenAndIpNot(number,\
+    \ before, now, ip);\n    }\n\n\n    private TransactionValidationResult getResult(Long\
+    \ amount) {\n        if (amount > ALLOWED.getLower() && amount <= ALLOWED.getUpper())\
+    \ {\n            return ALLOWED;\n        } else if (amount >= ALLOWED.getUpper()\
+    \ && amount <= PROHIBITED.getLower()) {\n            return MANUAL_PROCESSING;\n\
+    \        } else {\n           return PROHIBITED;\n        }\n    }\n}\n"
+  learner_created: true
+- name: src/antifraud/model/Transaction.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import antifraud.domain.Region;
+    import antifraud.domain.TransactionValidationResult;
+    import lombok.*;
+    import org.hibernate.Hibernate;
+    import org.hibernate.annotations.OnDelete;
+    import org.hibernate.annotations.OnDeleteAction;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.NotEmpty;
+    import javax.validation.constraints.NotNull;
+    import java.time.LocalDateTime;
+    import java.util.Objects;
+
+    @Getter
+    @Setter
+    @ToString
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    @Entity
+    @Table(name = "transactions")
+    @SequenceGenerator(name = "transaction_sequence", sequenceName = "TransactionSequence")
+    public class Transaction {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "transaction_sequence")
+        private Long id;
+
+        @NotNull
+        private Long amount;
+
+        @Enumerated(EnumType.STRING)
+        private TransactionValidationResult status;
+
+        @NotEmpty
+        private String ip;
+
+        @NotEmpty
+        private String number;
+
+        @Enumerated(EnumType.STRING)
+        private Region region;
+
+        private LocalDateTime date;
+
+        @ManyToOne
+        @OnDelete(action = OnDeleteAction.CASCADE)
+        @JoinColumn(name = "user_id")
+        private User user;
+
+        public Transaction(Long amount, String ip, String number, Region region, LocalDateTime date) {
+            this.amount = amount;
+            this.ip = ip;
+            this.number = number;
+            this.region = region;
+            this.date = date;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            Transaction that = (Transaction) o;
+            return id != null && Objects.equals(id, that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/UserRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.model.User;
+    import org.springframework.data.repository.CrudRepository;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface UserRepository extends CrudRepository<User, Long> {
+
+        Optional<User> findUsersByUsernameIgnoreCase(String name);
+        List<User> findAll();
+    }
+  learner_created: true
+- name: src/antifraud/exception/CardNotFoundException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class CardNotFoundException extends Exception {
+        public CardNotFoundException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/CardAlreadyExistException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class CardAlreadyExistException extends Exception {
+        public CardAlreadyExistException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/UserDetailsServiceImpl.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.auth.UserDetailsImpl;
+    import antifraud.model.User;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.security.core.userdetails.UserDetails;
+    import org.springframework.security.core.userdetails.UserDetailsService;
+    import org.springframework.security.core.userdetails.UsernameNotFoundException;
+    import org.springframework.stereotype.Service;
+
+    import java.util.Optional;
+
+    @Service
+    public class UserDetailsServiceImpl implements UserDetailsService {
+
+        private final UserService userService;
+
+        @Autowired
+        public UserDetailsServiceImpl(UserService userService) {
+            this.userService = userService;
+        }
+
+        @Override
+        public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+            Optional<User> user = userService.findByUsername(username);
+            if (user.isPresent()) {
+                return new UserDetailsImpl(user.get());
+            } else {
+                throw new UsernameNotFoundException("Not found " + username);
+            }
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/UserServiceImpl.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.*;
+    import antifraud.exception.AdminLockException;
+    import antifraud.exception.RoleUpdateException;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.mapper.UserMapper;
+    import antifraud.model.User;
+    import antifraud.repository.UserRepository;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.security.core.userdetails.UsernameNotFoundException;
+    import org.springframework.stereotype.Service;
+
+    import javax.transaction.Transactional;
+    import java.util.List;
+    import java.util.Optional;
+
+    import static antifraud.domain.UserRole.*;
+
+    @Service
+    public class UserServiceImpl implements UserService {
+
+        private final UserRepository userRepository;
+        private final UserMapper userMapper;
+
+        @Autowired
+        public UserServiceImpl(UserRepository userRepository, UserMapper userMapper) {
+            this.userRepository = userRepository;
+            this.userMapper = userMapper;
+        }
+
+        @Override
+        @Transactional
+        public UserDto create(User user) throws UserAlreadyExistException {
+
+            var count = userRepository.count();
+
+            if (count <= 0) {
+                user.setAccountNonLocked(true);
+                user.setRole(ROLE_ADMINISTRATOR);
+            } else {
+                var userFromRepo = userRepository.findUsersByUsernameIgnoreCase(user.getUsername());
+
+                if (userFromRepo.isPresent()) {
+                    throw new UserAlreadyExistException("User already exist!");
+                }
+
+                user.setRole(ROLE_MERCHANT);
+
+            }
+
+            return userMapper.toDto(userRepository.save(user));
+        }
+
+        @Override
+        public Optional<User> findByUsername(String name) throws UsernameNotFoundException {
+            return userRepository.findUsersByUsernameIgnoreCase(name);
+        }
+
+        @Override
+        public List<UserDto> findAll() {
+            return userMapper.toList(userRepository.findAll());
+        }
+
+        @Override
+        @Transactional
+        public UserDeletionResponse remove(String username) throws UserNotFoundException {
+            User user = userRepository.findUsersByUsernameIgnoreCase(username).orElseThrow(() -> new UserNotFoundException("User not found"));
+            userRepository.delete(user);
+            return UserDeletionResponse.builder().status(UserDeletionResponse.DEFAULT_STATUS).username(username).build();
+        }
+
+        @Override
+        @Transactional
+        public UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+
+            User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername())
+                    .orElseThrow(() -> new UserNotFoundException("User not found!"));
+
+            if (user.isAdmin()) {
+                throw new RoleUpdateException("User can have only one role");
+            }
+
+            if (user.getRole().getDescription().equals(request.getRole())) {
+                throw new UserAlreadyExistException("User already has the role");
+            }
+
+            user.setRole(UserRole.valueOf("ROLE_" + request.getRole()));
+            user = userRepository.save(user);
+
+            return userMapper.toDto(user);
+        }
+
+        @Override
+        @Transactional
+        public AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, AdminLockException {
+
+            User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername()).orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (user.isAdmin()) {
+                throw new AdminLockException(String.format("%s cannot be blocked", ROLE_ADMINISTRATOR.getDescription()));
+            }
+
+            final String operation = request.getOperation();
+            user.setAccountNonLocked(!"LOCK".equals(operation));
+
+            user = userRepository.save(user);
+
+            return AccessUpdateResponse.builder()
+                    .status(String.format("User %s %sed!", user.getUsername(), operation.toLowerCase()))
+                    .build();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/InvalidRegionException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class InvalidRegionException extends Exception {
+        public InvalidRegionException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/service/UserService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.*;
+    import antifraud.exception.AdminLockException;
+    import antifraud.exception.RoleUpdateException;
+    import antifraud.exception.UserAlreadyExistException;
+    import antifraud.exception.UserNotFoundException;
+    import antifraud.model.User;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface UserService {
+
+        UserDto create(User user) throws UserAlreadyExistException;
+
+        Optional<User> findByUsername(String name);
+
+        List<UserDto> findAll();
+
+        UserDeletionResponse remove(String username) throws UserNotFoundException;
+
+        UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException;
+
+        AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, AdminLockException;
+    }
+  learner_created: true
+- name: src/antifraud/exception/AddressAlreadyExistException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class AddressAlreadyExistException extends Exception {
+
+        public AddressAlreadyExistException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/handler/AntiFraudAccessDeniedHandler.java
+  visible: true
+  text: |
+    package antifraud.handler;
+
+    import org.springframework.http.HttpStatus;
+    import org.springframework.security.access.AccessDeniedException;
+    import org.springframework.security.core.Authentication;
+    import org.springframework.security.core.context.SecurityContextHolder;
+    import org.springframework.security.web.access.AccessDeniedHandler;
+    import org.springframework.stereotype.Component;
+
+    import javax.servlet.http.HttpServletRequest;
+    import javax.servlet.http.HttpServletResponse;
+    import java.io.IOException;
+
+    @Component
+    public class AntiFraudAccessDeniedHandler implements AccessDeniedHandler {
+
+        @Override
+        public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                response.sendError(HttpStatus.FORBIDDEN.value(), "Access Denied!");
+            }
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/UserAlreadyExistException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class UserAlreadyExistException extends Exception {
+
+        public UserAlreadyExistException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/UserNotFoundException.java
+  visible: true
+  text: |
+    package antifraud.exception;
+
+    public class UserNotFoundException extends Exception {
+
+        public UserNotFoundException(String message) {
+            super(message);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/TransactionRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.domain.Region;
+    import antifraud.model.Transaction;
+    import org.springframework.data.repository.CrudRepository;
+
+    import java.time.LocalDateTime;
+    import java.util.List;
+
+    public interface TransactionRepository extends CrudRepository<Transaction, Long> {
+
+        List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime last, LocalDateTime now, Region region);
+        List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
+    }
+  learner_created: true
+- name: src/antifraud/model/Address.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import antifraud.util.AntiFraudValidator;
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import lombok.*;
+    import org.hibernate.Hibernate;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotEmpty;
+    import java.util.Objects;
+
+    @Getter
+    @Setter
+    @ToString
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    @Entity
+    @Table(name = "addresses")
+    @SequenceGenerator(name = "address_sequence", sequenceName = "AddressSequence")
+    public class Address {
+
+        @Id
+        @Column(name = "address_id")
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "address_sequence")
+        private Long id;
+        @NotEmpty(message = "ip address must not be empty")
+        private String ip;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            Address address = (Address) o;
+            return id != null && Objects.equals(id, address.id);
+        }
+
+        @AssertTrue(message = "ip address is not valid")
+        @JsonIgnore
+        public boolean isValidIp() {
+            return ip != null && AntiFraudValidator.isValidIP().test(ip);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/mapper/UserMapper.java
+  visible: true
+  text: |
+    package antifraud.mapper;
+
+    import antifraud.domain.UserDto;
+    import antifraud.model.User;
+    import org.springframework.stereotype.Component;
+
+    import java.util.List;
+    import java.util.stream.Collectors;
+
+    @Component
+    public class UserMapper {
+
+        public UserDto toDto(User user) {
+            return UserDto.builder().id(user.getId()).name(user.getName())
+                    .username(user.getUsername()).role(user.getRole().getDescription()).build();
+        }
+
+        public List<UserDto> toList(List<User> users) {
+            return users.isEmpty() ? List.of() : users.stream().map(this::toDto).collect(Collectors.toList());
+        }
+    }
+  learner_created: true
+- name: src/antifraud/exception/TransactionNotFoundException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/TransactionFeedbackAlreadyExistException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/IllegalFeedbackException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/TransactionFeedbackUpdateException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/exception/InvalidNumberException.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/rest/AccessUpdateRequest.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotEmpty;
+
+    @Data
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class AccessUpdateRequest {
+
+        @NotEmpty(message = "username must not be mepty")
+        private String username;
+        @NotEmpty(message = "operation must not be empty")
+        private String operation;
+
+        @AssertTrue(message = "LOCK or UNLOCK operation supported")
+        public boolean isValidOperation() {
+            return "LOCK".equals(operation) || "UNLOCK".equals(operation);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/rest/AccessUpdateResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Builder;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class AccessUpdateResponse {
+
+        private String status;
+    }
+  learner_created: true
+- name: src/antifraud/rest/AddressDeletionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Builder;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class AddressDeletionResponse {
+
+        private String status;
+    }
+  learner_created: true
+- name: src/antifraud/rest/CardDeletionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Builder;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class CardDeletionResponse {
+
+        private String status;
+    }
+  learner_created: true
+- name: src/antifraud/rest/FeedbackUpdateRequest.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/rest/RoleChangeRequest.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.AllArgsConstructor;
+    import lombok.Data;
+    import lombok.RequiredArgsConstructor;
+
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotEmpty;
+
+    import java.util.function.Predicate;
+
+    import static antifraud.domain.UserRole.*;
+
+    @Data
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    public class RoleChangeRequest {
+
+        @NotEmpty(message = "username must not be empty")
+        private String username;
+        @NotEmpty(message = "role must not be empty")
+        private String role;
+
+        @AssertTrue(message = "Role must be SUPPORT or MERCHANT")
+        public boolean isValidRole() {
+            return isNotAdminRole().test(role);
+        }
+
+        private Predicate<String> isNotAdminRole() {
+            return role -> ROLE_SUPPORT.getDescription().equals(role) || ROLE_MERCHANT.getDescription().equals(role);
+        }
+    }
+  learner_created: true
+- name: src/antifraud/rest/TransactionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class TransactionResponse {
+
+        private TransactionValidationResult result;
+
+        private String info;
+    }
+  learner_created: true
+- name: src/antifraud/rest/UserDeletionResponse.java
+  visible: true
+  text: |
+    package antifraud.domain;
+
+    import lombok.*;
+
+    @Data
+    @Builder
+    @RequiredArgsConstructor
+    @AllArgsConstructor
+    public class UserDeletionResponse {
+
+        private String username;
+        private String status;
+
+        public static final String DEFAULT_STATUS = "Deleted successfully!";
+    }
+  learner_created: true
+- name: src/antifraud/util/AntiFraudUtil.java
+  visible: true
+  text: |
+    package antifraud.util;
+
+    import java.util.function.Predicate;
+
+    public class AntiFraudValidator {
+
+        private transient static final String IPV4_PATTERN =
+                "^([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\." +
+                        "([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\." +
+                        "([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\." +
+                        "([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$";
+
+        public static Predicate<String> isValidIP() {
+            return ip -> ip.matches(IPV4_PATTERN);
+        }
+
+        public static Predicate<String> isValidNumber() {
+            return number -> {
+                int checkSum = Integer.parseInt(String.valueOf(number.charAt(number.length() - 1)));
+
+                for (int i = 0; i < number.length() - 1; i++) {
+                    int digit = Integer.parseInt(String.valueOf(number.charAt(i)));
+
+                    if (i % 2 == 0) {
+                        digit = digit * 2;
+
+                        if (digit > 9) {
+                            digit = digit - 9;
+                        }
+                    }
+                    checkSum += digit;
+                }
+
+                return checkSum % 10 == 0;
+            };
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/StolenCard.java
+  visible: true
+  text: |
+    package antifraud.model;
+
+    import antifraud.util.AntiFraudValidator;
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import lombok.*;
+    import org.hibernate.Hibernate;
+
+    import javax.persistence.*;
+    import javax.validation.constraints.AssertTrue;
+    import javax.validation.constraints.NotEmpty;
+    import java.util.Objects;
+
+    @Getter
+    @Setter
+    @ToString
+    @AllArgsConstructor
+    @RequiredArgsConstructor
+    @Entity
+    @SequenceGenerator(name = "card_sequence", sequenceName = "CardSequence")
+    public class Card {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "card_sequence")
+        @Column(name = "card_id")
+        private Long id;
+
+        @NotEmpty
+        private String number;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+            Card card = (Card) o;
+            return id != null && Objects.equals(id, card.id);
+        }
+
+        @AssertTrue(message = "Invalid card number in request!")
+        @JsonIgnore
+        public boolean isValid() {
+            return number != null && AntiFraudValidator.isValidNumber().test(number);
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/StolenCardRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.model.Card;
+    import org.springframework.data.repository.CrudRepository;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface CardBlackListRepository extends CrudRepository<Card, Long> {
+
+        Optional<Card> findByNumber(String number);
+
+        List<Card> findAll();
+    }
+  learner_created: true
+- name: src/antifraud/service/StolenCardService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.CardDeletionResponse;
+    import antifraud.exception.CardAlreadyExistException;
+    import antifraud.exception.CardNotFoundException;
+    import antifraud.model.Card;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface CardBlacklistService {
+
+        Card create(Card card) throws CardAlreadyExistException;
+        CardDeletionResponse removeByNumber(String number) throws CardNotFoundException;
+        List<Card> findAll();
+
+        boolean isBlacklistedCardNumber(String number);
+    }
+  learner_created: true
+- name: src/antifraud/service/StolenCardServiceImpl.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.CardDeletionResponse;
+    import antifraud.exception.CardAlreadyExistException;
+    import antifraud.exception.CardNotFoundException;
+    import antifraud.model.Card;
+    import antifraud.repository.CardBlackListRepository;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.stereotype.Service;
+
+    import javax.transaction.Transactional;
+    import java.util.List;
+
+    @Service
+    public class CardBlacklistServiceImpl implements CardBlacklistService {
+
+        private final CardBlackListRepository cardBlackListRepository;
+
+        @Autowired
+        public CardBlacklistServiceImpl(CardBlackListRepository cardBlackListRepository) {
+            this.cardBlackListRepository = cardBlackListRepository;
+        }
+
+        @Override
+        @Transactional
+        public Card create(Card newCard) throws CardAlreadyExistException {
+
+            var car = cardBlackListRepository.findByNumber(newCard.getNumber());
+
+            if (car.isPresent()) {
+                throw new CardAlreadyExistException("Card already exist!");
+            }
+
+            return cardBlackListRepository.save(newCard);
+        }
+
+        @Override
+        @Transactional
+        public CardDeletionResponse removeByNumber(String number) throws CardNotFoundException {
+            Card card = cardBlackListRepository.findByNumber(number).orElseThrow(() -> new CardNotFoundException("Card not found!"));
+            cardBlackListRepository.delete(card);
+
+            String status = String.format("Card %s successfully removed!", number);
+
+            return CardDeletionResponse.builder().status(status).build();
+        }
+
+        @Override
+        public List<Card> findAll() {
+            return cardBlackListRepository.findAll();
+        }
+
+        @Override
+        public boolean isBlacklistedCardNumber(String number) {
+            return this.cardBlackListRepository.findByNumber(number).isPresent();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/model/Card.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/controller/StolenCardController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.CardDeletionResponse;
+    import antifraud.exception.CardAlreadyExistException;
+    import antifraud.exception.CardNotFoundException;
+    import antifraud.model.Card;
+    import antifraud.service.CardBlacklistService;
+    import antifraud.util.AntiFraudValidator;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.*;
+
+    import javax.validation.Valid;
+    import java.util.List;
+
+    @RestController
+    @RequestMapping(path = "/api/antifraud/stolencard", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class CardController {
+
+        private final CardBlacklistService cardBlacklistService;
+
+        @Autowired
+        public CardController(CardBlacklistService cardBlacklistService) {
+            this.cardBlacklistService = cardBlacklistService;
+        }
+
+        @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+        public ResponseEntity<Card> create(@Valid @RequestBody Card card) throws CardAlreadyExistException {
+            return ResponseEntity.ok(cardBlacklistService.create(card));
+        }
+
+        @DeleteMapping("/{number}")
+        public ResponseEntity<CardDeletionResponse> delete(@PathVariable String number) throws CardNotFoundException {
+            if (AntiFraudValidator.isValidNumber().negate().test(number)) {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok(cardBlacklistService.removeByNumber(number));
+        }
+
+        @GetMapping
+        public ResponseEntity<List<Card>> fetch() {
+            return ResponseEntity.ok(cardBlacklistService.findAll());
+        }
+    }
+  learner_created: true
+- name: src/antifraud/repository/CardRepository.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/service/CardServiceImpl.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/service/CardService.java
+  visible: true
+  learner_created: true
+- name: src/antifraud/repository/SuspiciousIpRepository.java
+  visible: true
+  text: |
+    package antifraud.repository;
+
+    import antifraud.model.Address;
+    import org.springframework.data.repository.CrudRepository;
+
+    import java.util.List;
+    import java.util.Optional;
+
+    public interface AddressBlacklistRepository extends CrudRepository<Address, Long> {
+
+        Optional<Address> findByIp(String ip);
+        List<Address> findAll();
+    }
+  learner_created: true
+- name: src/antifraud/service/SuspiciousIpService.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.AddressDeletionResponse;
+    import antifraud.exception.AddressAlreadyExistException;
+    import antifraud.exception.AddressNotFoundException;
+    import antifraud.model.Address;
+
+    import java.util.List;
+
+    public interface AddressBlacklistService {
+
+        List<Address> findAll();
+        Address create(Address address) throws AddressAlreadyExistException;
+
+        AddressDeletionResponse removeIP(String ip) throws AddressNotFoundException;
+
+        boolean isBlacklistedIp(String ip);
+    }
+  learner_created: true
+- name: src/antifraud/service/SuspiciousIpServiceImpl.java
+  visible: true
+  text: |
+    package antifraud.service;
+
+    import antifraud.domain.AddressDeletionResponse;
+    import antifraud.exception.AddressAlreadyExistException;
+    import antifraud.exception.AddressNotFoundException;
+    import antifraud.model.Address;
+    import antifraud.repository.AddressBlacklistRepository;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.stereotype.Service;
+
+    import javax.transaction.Transactional;
+    import java.util.List;
+
+    @Service
+    public class AddressBlacklistServiceImpl implements AddressBlacklistService {
+
+        private final AddressBlacklistRepository addressBlacklistRepository;
+
+        @Autowired
+        public AddressBlacklistServiceImpl(AddressBlacklistRepository addressBlacklistRepository) {
+            this.addressBlacklistRepository = addressBlacklistRepository;
+        }
+
+        @Override
+        public List<Address> findAll() {
+            return addressBlacklistRepository.findAll();
+        }
+
+        @Override
+        @Transactional
+        public Address create(Address address) throws AddressAlreadyExistException {
+
+            var addressOptional = addressBlacklistRepository.findByIp(address.getIp());
+
+            if (addressOptional.isPresent()) {
+                throw new AddressAlreadyExistException("IP address already exist!");
+            }
+
+            return addressBlacklistRepository.save(address);
+        }
+
+        @Override
+        @Transactional
+        public AddressDeletionResponse removeIP(String ip) throws AddressNotFoundException {
+            Address address = addressBlacklistRepository.findByIp(ip).orElseThrow(() -> new AddressNotFoundException("IP address not found!"));
+            addressBlacklistRepository.delete(address);
+
+            String status = String.format("IP %s successfully removed!", ip);
+
+            return AddressDeletionResponse.builder().status(status).build();
+        }
+
+        @Override
+        public boolean isBlacklistedIp(String ip) {
+            return this.addressBlacklistRepository.findByIp(ip).isPresent();
+        }
+    }
+  learner_created: true
+- name: src/antifraud/controller/SuspiciousIpController.java
+  visible: true
+  text: |
+    package antifraud.controller;
+
+    import antifraud.domain.AddressDeletionResponse;
+    import antifraud.exception.AddressAlreadyExistException;
+    import antifraud.exception.AddressNotFoundException;
+    import antifraud.model.Address;
+    import antifraud.service.AddressBlacklistService;
+    import antifraud.util.AntiFraudValidator;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.validation.annotation.Validated;
+    import org.springframework.web.bind.annotation.*;
+
+    import javax.validation.Valid;
+    import java.util.List;
+
+    @RestController
+    @RequestMapping(path = "/api/antifraud/suspicious-ip", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Validated
+    public class AddressController {
+
+        private final AddressBlacklistService addressBlacklistService;
+
+        @Autowired
+        public AddressController(AddressBlacklistService addressBlacklistService) {
+            this.addressBlacklistService = addressBlacklistService;
+        }
+
+        @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+        public ResponseEntity<Address> create(@Valid @RequestBody Address address) throws AddressAlreadyExistException {
+            return ResponseEntity.ok(addressBlacklistService.create(address));
+        }
+
+        @DeleteMapping("/{ip}")
+        public ResponseEntity<AddressDeletionResponse> delete(@PathVariable String ip) throws AddressNotFoundException {
+            if (AntiFraudValidator.isValidIP().negate().test(ip)) {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok(addressBlacklistService.removeIP(ip));
+        }
+
+        @GetMapping
+        public ResponseEntity<List<Address>> fetch() {
+            return ResponseEntity.ok(addressBlacklistService.findAll());
+        }
+    }
+  learner_created: true
 feedback_link: https://hyperskill.org/learn/step/18072#comment
-status: Unchecked
+status: Failed
+feedback:
+  message: |-
+    Wrong answer in test #120
+
+    PUT /api/antifraud/transaction should respond with status code 422, responded: 200
+    Response body:
+    {
+      &quot;amount&quot; : 2000,
+      &quot;ip&quot; : &quot;192.168.1.67&quot;,
+      &quot;number&quot; : &quot;4000003305160034&quot;,
+      &quot;region&quot; : &quot;EAP&quot;,
+      &quot;date&quot; : &quot;2022-01-22T16:00:00&quot;,
+      &quot;result&quot; : &quot;PROHIBITED&quot;,
+      &quot;feedback&quot; : &quot;MANUAL_PROCESSING&quot;,
+      &quot;transactionId&quot; : 63
+    }
+  time: Mon, 31 Oct 2022 19:11:23 UTC
 record: -1

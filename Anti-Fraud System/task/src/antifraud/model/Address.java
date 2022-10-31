@@ -1,6 +1,6 @@
 package antifraud.model;
 
-import antifraud.util.AntiFraudValidator;
+import antifraud.util.AntiFraudUtil;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.hibernate.Hibernate;
@@ -38,7 +38,7 @@ public class Address {
     @AssertTrue(message = "ip address is not valid")
     @JsonIgnore
     public boolean isValidIp() {
-        return ip != null && AntiFraudValidator.isValidIP().test(ip);
+        return ip != null && AntiFraudUtil.isValidIP().test(ip);
     }
 
     @Override

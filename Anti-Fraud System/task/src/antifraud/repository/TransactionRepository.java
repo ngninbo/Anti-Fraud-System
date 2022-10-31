@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface TransactionRepository extends CrudRepository<Transaction, Long> {
 
-    List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime last, LocalDateTime now, Region region);
-    List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
+    List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime start, LocalDateTime end, Region region);
+    List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime start, LocalDateTime end, String ip);
+    List<Transaction> findAll();
+    List<Transaction> findAllByNumber(String number);
 }

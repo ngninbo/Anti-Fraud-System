@@ -1,11 +1,10 @@
 package antifraud.service;
 
+import antifraud.rest.FeedbackUpdateRequest;
 import antifraud.domain.Region;
 import antifraud.domain.TransactionDto;
-import antifraud.domain.TransactionResponse;
-import antifraud.exception.InvalidRegionException;
-import antifraud.exception.TransactionDateParsingException;
-import antifraud.exception.UserNotFoundException;
+import antifraud.rest.TransactionResponse;
+import antifraud.exception.*;
 import antifraud.model.Transaction;
 
 import java.time.LocalDateTime;
@@ -18,4 +17,10 @@ public interface TransactionService {
     List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime before, LocalDateTime now, Region region);
 
     List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
+
+    Transaction updateTransactionFeedback(FeedbackUpdateRequest request) throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException;
+
+    List<Transaction> findAll();
+
+    List<Transaction> findAllByNumber(String number) throws InvalidNumberException, TransactionNotFoundException;
 }

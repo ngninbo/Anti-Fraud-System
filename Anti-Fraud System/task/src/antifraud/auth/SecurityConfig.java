@@ -54,6 +54,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .mvcMatchers("/api/antifraud/suspicious-ip", "/api/antifraud/suspicious-ip/**", "/api/antifraud/stolencard", "/api/antifraud/stolencard/**").hasRole(ROLE_SUPPORT.getDescription())
                 .mvcMatchers(HttpMethod.PUT, "/api/auth/access", "/api/auth/role").hasRole(ROLE_ADMINISTRATOR.getDescription())
                 .mvcMatchers(HttpMethod.DELETE, "/api/auth/**").hasRole(ROLE_ADMINISTRATOR.getDescription())
+                .mvcMatchers(HttpMethod.GET, "/api/antifraud/history", "/api/antifraud/history/*").hasRole(ROLE_SUPPORT.getDescription())
+                .mvcMatchers(HttpMethod.PUT, "/api/antifraud/transaction").hasRole(ROLE_SUPPORT.getDescription())
                 .antMatchers(HttpMethod.POST, "/api/auth/user").permitAll()
                 .antMatchers("/actuator/shutdown").permitAll() // needs to run test
                 // other matchers

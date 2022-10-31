@@ -1,14 +1,12 @@
 package antifraud.service;
 
-import antifraud.domain.Region;
-import antifraud.domain.TransactionDto;
-import antifraud.domain.TransactionResponse;
-import antifraud.domain.TransactionValidationResult;
-import antifraud.exception.InvalidRegionException;
-import antifraud.exception.TransactionDateParsingException;
-import antifraud.exception.UserNotFoundException;
+import antifraud.domain.*;
+import antifraud.exception.*;
 import antifraud.model.Transaction;
 import antifraud.repository.TransactionRepository;
+import antifraud.rest.FeedbackUpdateRequest;
+import antifraud.rest.TransactionResponse;
+import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,17 +24,21 @@ import static antifraud.domain.TransactionValidationResult.*;
 @Service
 public class TransactionServiceImpl implements TransactionService {
 
+    Long MAX_ALLOWED = 200L;
+    Long MAX_MANUAL_PROCESSING = 1500L;
+
     private final TransactionRepository transactionRepository;
     private final UserServiceImpl userService;
-    private final AddressBlacklistService addressBlacklistService;
-    private final CardBlacklistService cardBlacklistService;
+    private final SuspiciousIpService suspiciousIpService;
+    private final StolenCardService stolenCardService;
 
     @Autowired
-    public TransactionServiceImpl(TransactionRepository transactionRepository, UserServiceImpl userService, AddressBlacklistService addressBlacklistService, CardBlacklistService cardBlacklistService) {
+    public TransactionServiceImpl(TransactionRepository transactionRepository, UserServiceImpl userService,
+                                  SuspiciousIpService suspiciousIpService, StolenCardService stolenCardService) {
         this.transactionRepository = transactionRepository;
         this.userService = userService;
-        this.addressBlacklistService = addressBlacklistService;
-        this.cardBlacklistService = cardBlacklistService;
+        this.suspiciousIpService = suspiciousIpService;
+        this.stolenCardService = stolenCardService;
     }
 
     @Override
@@ -59,112 +61,100 @@ public class TransactionServiceImpl implements TransactionService {
             transaction.setUser(userService.findByUsername(username).orElseThrow(() -> new UserNotFoundException("User not found!")));
         }
 
-        boolean isBlackListedAddress = addressBlacklistService.isBlacklistedIp(transaction.getIp());
-        boolean isBlackListedCardNumber = cardBlacklistService.isBlacklistedCardNumber(transaction.getNumber());
+        boolean isBlackListedAddress = suspiciousIpService.isBlacklistedIp(transaction.getIp());
+        boolean isBlackListedCardNumber = stolenCardService.isBlacklistedCardNumber(transaction.getNumber());
         LocalDateTime lastHour = date.minusHours(1);
         var  numTransactionsNotInRegion = this.findAlLByNumberAndDateBetweenAndRegionNot(transaction.getNumber(), lastHour, date, region).stream().map(Transaction::getRegion).distinct().count();
         var numTransactionsNotWithIp = this.findAllByNumberAndDateIsBetweenAndIpNot(transaction.getNumber(), lastHour, date, transaction.getIp()).stream().map(Transaction::getIp).distinct().count();
-
-        String reason;
+        
         var result = getResult(transaction.getAmount());
+        var tb = TransactionResponse.builder();
 
         final boolean isTransactionFromTwoDifferentRegions = numTransactionsNotInRegion == 2;
         final boolean isTransactionFromTwoDifferentIps = numTransactionsNotWithIp == 2;
         final boolean isTransactionFromMoreThanTwoDifferentRegions = numTransactionsNotInRegion > 2;
         final boolean isTransactionFromMoreThanTwoDifferentIps = numTransactionsNotWithIp > 2;
+        
         switch (result) {
             case ALLOWED:
                 if(isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentRegions && isTransactionFromMoreThanTwoDifferentIps) {
-                    result = PROHIBITED;
-                    reason = "card-number, ip, ip-correlation, region-correlation";
+                    tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentRegions && isTransactionFromMoreThanTwoDifferentIps) {
-                    result = PROHIBITED;
-                    reason = "ip-correlation, region-correlation";
+                    tb.result(PROHIBITED).info("ip-correlation, region-correlation");
                 } else if (isBlackListedAddress && isBlackListedCardNumber) {
-                    result = PROHIBITED;
-                    reason = "card-number, ip";
+                    tb.result(PROHIBITED).info("card-number, ip");
                 } else if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps) {
-                    result = MANUAL_PROCESSING;
-                    reason = "ip-correlation, region-correlation";
+                    tb.result(MANUAL_PROCESSING).info("ip-correlation, region-correlation");
                 } else if (isTransactionFromTwoDifferentRegions) {
-                    result = MANUAL_PROCESSING;
-                    reason = "region-correlation";
+                    tb.result(MANUAL_PROCESSING).info("region-correlation");
                 } else if (isTransactionFromTwoDifferentIps) {
-                    result = MANUAL_PROCESSING;
-                    reason = "ip-correlation";
+                    tb.result(MANUAL_PROCESSING).info("ip-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    result = PROHIBITED;
-                    reason = "region-correlation";
+                    tb.result(PROHIBITED).info("region-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    result = PROHIBITED;
-                    reason = "ip-correlation";
+                    tb.result(PROHIBITED).info("ip-correlation");
                 } else if (isBlackListedCardNumber) {
-                    result = PROHIBITED;
-                    reason = "card-number";
+                    tb.result(PROHIBITED).info("card-number");
                 } else if (isBlackListedAddress) {
-                    result = PROHIBITED;
-                    reason = "ip";
+                    tb.result(PROHIBITED).info("ip");
                 } else {
-                    reason = "none";
+                    tb.result(ALLOWED).info("none");
                 }
                 break;
             case PROHIBITED:
+                tb.result(PROHIBITED);
                 if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentRegions && isTransactionFromMoreThanTwoDifferentIps) {
-                    reason = "amount, card-number, ip, ip-correlation, region-correlation";
+                    tb.info("amount, card-number, ip, ip-correlation, region-correlation");
                 } else if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentIps) {
-                    reason = "amount, card-number, ip, ip-correlation";
+                    tb.info("amount, card-number, ip, ip-correlation");
                 } else if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentRegions) {
-                    reason = "amount, card-number, ip, region-correlation";
+                    tb.info("amount, card-number, ip, region-correlation");
                 } else if (isBlackListedAddress && isBlackListedCardNumber) {
-                    reason = "amount, card-number, ip";
+                    tb.info("amount, card-number, ip");
                 } else if (isBlackListedCardNumber) {
-                    reason = "amount, card-number";
+                    tb.info("amount, card-number");
                 } else if (isBlackListedAddress) {
-                    reason = "amount, ip";
+                    tb.info("amount, ip");
                 } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    reason = "amount, region-correlation";
+                    tb.info("amount, region-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    reason = "amount, ip-correlation";
+                    tb.info("amount, ip-correlation");
                 } else {
-                    reason = "amount";
+                    tb.info("amount");
                 }
                 break;
             case MANUAL_PROCESSING:
+                tb.result(MANUAL_PROCESSING);
                 if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps && isBlackListedAddress && isBlackListedCardNumber) {
-                    result = PROHIBITED;
-                    reason = "card-number, ip, ip-correlation, region-correlation";
+                    tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
                 } else if (isBlackListedCardNumber && isBlackListedAddress) {
-                    result = PROHIBITED;
-                    reason = "card-number, ip";
+                    tb.result(PROHIBITED).info("card-number, ip");
                 } else if (isBlackListedCardNumber) {
-                    result = PROHIBITED;
-                    reason = "card-number";
+                    tb.result(PROHIBITED).info("card-number");
                 } else if (isBlackListedAddress) {
-                    result = PROHIBITED;
-                    reason = "ip";
+                    tb.result(PROHIBITED).info("ip");
                 } else if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps) {
-                    reason = "ip-correlation, region-correlation";
+                    tb.info("ip-correlation, region-correlation");
                 } else if (isTransactionFromTwoDifferentRegions) {
-                    reason = "region-correlation";
+                    tb.info("region-correlation");
                 } else if (isTransactionFromTwoDifferentIps) {
-                    reason = "ip-correlation";
+                    tb.info("ip-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    result = PROHIBITED;
-                    reason = "region-correlation";
+                    tb.result(PROHIBITED).info("region-correlation");
                 } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    result = PROHIBITED;
-                    reason = "ip-correlation";
+                    tb.result(PROHIBITED).info("ip-correlation");
                 } else {
-                    reason = "amount";
+                    tb.info("amount");
                 }
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + result);
         }
 
-        transaction.setStatus(result);
+        TransactionResponse resp = tb.build();
+        transaction.setResult(resp.getResult());
         transactionRepository.save(transaction);
-        return TransactionResponse.builder().result(result).info(reason).build();
+        return resp;
     }
 
     @Override
@@ -177,6 +167,76 @@ public class TransactionServiceImpl implements TransactionService {
         return this.transactionRepository.findAllByNumberAndDateIsBetweenAndIpNot(number, before, now, ip);
     }
 
+    @Override
+    @Transactional
+    public Transaction updateTransactionFeedback(FeedbackUpdateRequest request)
+            throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException {
+
+        Transaction transaction = transactionRepository.findById(request.getTransactionId())
+                .orElseThrow(() -> new TransactionNotFoundException(String.format("Transaction for id = %s not found", request.getTransactionId())));
+
+        var requestFeedback = TransactionValidationResult.parse(request.getFeedback());
+        final TransactionValidationResult result = transaction.getResult();
+        final Long amount = transaction.getAmount();
+
+        if (!transaction.getFeedbackString().isEmpty()) {
+            throw new TransactionFeedbackAlreadyExistException("Feedback for specified transaction already set!");
+        }
+
+        if (result.equals(requestFeedback)) {
+            throw new TransactionFeedbackUpdateException("Transaction Feedback and Transaction Validity are equal!");
+        }
+
+        switch (requestFeedback) {
+            case ALLOWED:
+                if (result.equals(MANUAL_PROCESSING)) {
+                    MAX_ALLOWED = increaseLimit(MAX_ALLOWED, amount);
+                } else if (result.equals(PROHIBITED)) {
+                    MAX_ALLOWED = increaseLimit(MAX_ALLOWED, amount);
+                    MAX_MANUAL_PROCESSING = increaseLimit(MAX_MANUAL_PROCESSING, amount);
+                }
+                break;
+            case MANUAL_PROCESSING:
+                if (result.equals(ALLOWED)) {
+                    MAX_ALLOWED = decreaseLimit(MAX_ALLOWED, amount);
+                } else if (result.equals(PROHIBITED)) {
+                    MAX_MANUAL_PROCESSING = increaseLimit(MAX_MANUAL_PROCESSING, amount);
+                }
+                break;
+            case PROHIBITED:
+                if (result.equals(ALLOWED)) {
+                    MAX_ALLOWED = decreaseLimit(MAX_ALLOWED, amount);
+                    MAX_MANUAL_PROCESSING = decreaseLimit(MAX_MANUAL_PROCESSING, amount);
+                } else if (result.equals(MANUAL_PROCESSING)) {
+                    MAX_MANUAL_PROCESSING = decreaseLimit(MAX_MANUAL_PROCESSING, amount);
+                }
+                break;
+        }
+
+        transaction.setFeedback(requestFeedback);
+
+        return transactionRepository.save(transaction);
+    }
+
+    @Override
+    public List<Transaction> findAll() {
+        return transactionRepository.findAll();
+    }
+
+    @Override
+    public List<Transaction> findAllByNumber(String number) throws InvalidNumberException, TransactionNotFoundException {
+
+        if (AntiFraudUtil.isValidNumber().negate().test(number)) {
+            throw new InvalidNumberException("card number validation failed");
+        }
+
+        final List<Transaction> transactions = transactionRepository.findAllByNumber(number);
+
+        if (transactions.isEmpty()) {
+            throw new TransactionNotFoundException(String.format("No transaction for number = %s found", number));
+        }
+        return transactions;
+    }
 
     private TransactionValidationResult getResult(Long amount) {
         if (amount > ALLOWED.getLower() && amount <= ALLOWED.getUpper()) {
@@ -184,7 +244,15 @@ public class TransactionServiceImpl implements TransactionService {
         } else if (amount >= ALLOWED.getUpper() && amount <= PROHIBITED.getLower()) {
             return MANUAL_PROCESSING;
         } else {
-           return PROHIBITED;
+            return PROHIBITED;
         }
+    }
+
+    private long increaseLimit(long currentLimit, long amount) {
+        return (long) Math.ceil(0.8 * currentLimit + 0.2 * amount);
+    }
+
+    private long decreaseLimit(long currentLimit, long amount) {
+        return (long) Math.ceil(0.8 * currentLimit - 0.2 * amount);
     }
 }

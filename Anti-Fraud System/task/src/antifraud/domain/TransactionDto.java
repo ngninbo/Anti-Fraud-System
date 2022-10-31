@@ -1,6 +1,6 @@
 package antifraud.domain;
 
-import antifraud.util.AntiFraudValidator;
+import antifraud.util.AntiFraudUtil;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,13 +28,13 @@ public class TransactionDto {
     @AssertTrue(message = "ip address is not valid")
     @JsonIgnore
     public boolean isValidIp() {
-        return ip != null && AntiFraudValidator.isValidIP().test(ip);
+        return ip != null && AntiFraudUtil.isValidIP().test(ip);
     }
 
     @AssertTrue(message = "Invalid card number in request!")
     @JsonIgnore
     public boolean isValid() {
-        return number != null && AntiFraudValidator.isValidNumber().test(number);
+        return number != null && AntiFraudUtil.isValidNumber().test(number);
     }
 
     @AssertTrue(message = "Wrong region!")
