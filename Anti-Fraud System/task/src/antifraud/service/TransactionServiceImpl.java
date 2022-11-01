@@ -8,9 +8,6 @@ import antifraud.rest.FeedbackUpdateRequest;
 import antifraud.rest.TransactionResponse;
 import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
@@ -24,28 +21,23 @@ import static antifraud.domain.TransactionValidationResult.*;
 @Service
 public class TransactionServiceImpl implements TransactionService {
 
-    Long MAX_ALLOWED = 200L;
-    Long MAX_MANUAL_PROCESSING = 1500L;
-
     private final TransactionRepository transactionRepository;
-    private final UserServiceImpl userService;
     private final SuspiciousIpService suspiciousIpService;
     private final StolenCardService stolenCardService;
+    private final CardService cardService;
 
     @Autowired
-    public TransactionServiceImpl(TransactionRepository transactionRepository, UserServiceImpl userService,
-                                  SuspiciousIpService suspiciousIpService, StolenCardService stolenCardService) {
+    public TransactionServiceImpl(TransactionRepository transactionRepository,
+                                  SuspiciousIpService suspiciousIpService, StolenCardService stolenCardService, CardService cardService) {
         this.transactionRepository = transactionRepository;
-        this.userService = userService;
         this.suspiciousIpService = suspiciousIpService;
         this.stolenCardService = stolenCardService;
+        this.cardService = cardService;
     }
 
     @Override
     @Transactional
-    public TransactionResponse validate(TransactionDto dto) throws UserNotFoundException, InvalidRegionException, DateTimeException, TransactionDateParsingException {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username;
+    public TransactionResponse validate(TransactionDto dto) throws InvalidRegionException, DateTimeException, TransactionDateParsingException {
 
         final Region region = Region.toRegion(dto.getRegion());
         final LocalDateTime date;
@@ -56,18 +48,13 @@ public class TransactionServiceImpl implements TransactionService {
         }
         Transaction transaction = new Transaction(dto.getAmount(), dto.getIp(), dto.getNumber(), region, date);
 
-        if (auth != null) {
-            username = ((UserDetails) auth.getPrincipal()).getUsername();
-            transaction.setUser(userService.findByUsername(username).orElseThrow(() -> new UserNotFoundException("User not found!")));
-        }
-
         boolean isBlackListedAddress = suspiciousIpService.isBlacklistedIp(transaction.getIp());
         boolean isBlackListedCardNumber = stolenCardService.isBlacklistedCardNumber(transaction.getNumber());
         LocalDateTime lastHour = date.minusHours(1);
         var  numTransactionsNotInRegion = this.findAlLByNumberAndDateBetweenAndRegionNot(transaction.getNumber(), lastHour, date, region).stream().map(Transaction::getRegion).distinct().count();
         var numTransactionsNotWithIp = this.findAllByNumberAndDateIsBetweenAndIpNot(transaction.getNumber(), lastHour, date, transaction.getIp()).stream().map(Transaction::getIp).distinct().count();
         
-        var result = getResult(transaction.getAmount());
+        var result = getResult(transaction.getAmount(), transaction.getNumber());
         var tb = TransactionResponse.builder();
 
         final boolean isTransactionFromTwoDifferentRegions = numTransactionsNotInRegion == 2;
@@ -187,32 +174,7 @@ public class TransactionServiceImpl implements TransactionService {
             throw new TransactionFeedbackUpdateException("Transaction Feedback and Transaction Validity are equal!");
         }
 
-        switch (requestFeedback) {
-            case ALLOWED:
-                if (result.equals(MANUAL_PROCESSING)) {
-                    MAX_ALLOWED = increaseLimit(MAX_ALLOWED, amount);
-                } else if (result.equals(PROHIBITED)) {
-                    MAX_ALLOWED = increaseLimit(MAX_ALLOWED, amount);
-                    MAX_MANUAL_PROCESSING = increaseLimit(MAX_MANUAL_PROCESSING, amount);
-                }
-                break;
-            case MANUAL_PROCESSING:
-                if (result.equals(ALLOWED)) {
-                    MAX_ALLOWED = decreaseLimit(MAX_ALLOWED, amount);
-                } else if (result.equals(PROHIBITED)) {
-                    MAX_MANUAL_PROCESSING = increaseLimit(MAX_MANUAL_PROCESSING, amount);
-                }
-                break;
-            case PROHIBITED:
-                if (result.equals(ALLOWED)) {
-                    MAX_ALLOWED = decreaseLimit(MAX_ALLOWED, amount);
-                    MAX_MANUAL_PROCESSING = decreaseLimit(MAX_MANUAL_PROCESSING, amount);
-                } else if (result.equals(MANUAL_PROCESSING)) {
-                    MAX_MANUAL_PROCESSING = decreaseLimit(MAX_MANUAL_PROCESSING, amount);
-                }
-                break;
-        }
-
+        cardService.processLimits(transaction.getNumber(), amount, result, requestFeedback);
         transaction.setFeedback(requestFeedback);
 
         return transactionRepository.save(transaction);
@@ -238,21 +200,7 @@ public class TransactionServiceImpl implements TransactionService {
         return transactions;
     }
 
-    private TransactionValidationResult getResult(Long amount) {
-        if (amount > ALLOWED.getLower() && amount <= ALLOWED.getUpper()) {
-            return ALLOWED;
-        } else if (amount >= ALLOWED.getUpper() && amount <= PROHIBITED.getLower()) {
-            return MANUAL_PROCESSING;
-        } else {
-            return PROHIBITED;
-        }
-    }
-
-    private long increaseLimit(long currentLimit, long amount) {
-        return (long) Math.ceil(0.8 * currentLimit + 0.2 * amount);
-    }
-
-    private long decreaseLimit(long currentLimit, long amount) {
-        return (long) Math.ceil(0.8 * currentLimit - 0.2 * amount);
+    private TransactionValidationResult getResult(Long amount, String cardNumber) {
+        return this.cardService.processAmount(amount, cardNumber);
     }
 }

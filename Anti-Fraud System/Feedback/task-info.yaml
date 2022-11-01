@@ -3815,22 +3815,9 @@ files:
     }
   learner_created: true
 feedback_link: https://hyperskill.org/learn/step/18072#comment
-status: Failed
+status: Solved
 feedback:
-  message: |-
-    Wrong answer in test #120
-
-    PUT /api/antifraud/transaction should respond with status code 422, responded: 200
-    Response body:
-    {
-      &quot;amount&quot; : 2000,
-      &quot;ip&quot; : &quot;192.168.1.67&quot;,
-      &quot;number&quot; : &quot;4000003305160034&quot;,
-      &quot;region&quot; : &quot;EAP&quot;,
-      &quot;date&quot; : &quot;2022-01-22T16:00:00&quot;,
-      &quot;result&quot; : &quot;PROHIBITED&quot;,
-      &quot;feedback&quot; : &quot;MANUAL_PROCESSING&quot;,
-      &quot;transactionId&quot; : 63
-    }
-  time: Mon, 31 Oct 2022 19:11:23 UTC
+  message: Well done! You've finished the project. Select a new project on <a href="https://hyperskill.org/projects">JetBrains
+    Academy</a> to continue learning.
+  time: Tue, 01 Nov 2022 06:34:20 UTC
 record: -1

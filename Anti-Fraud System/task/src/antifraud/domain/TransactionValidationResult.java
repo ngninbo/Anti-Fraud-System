@@ -25,7 +25,7 @@ public enum TransactionValidationResult {
             case "PROHIBITED":
                 return PROHIBITED;
             default:
-                throw new IllegalFeedbackException("Wrong feedback format");
+                throw new IllegalFeedbackException("Wrong feedback!");
         }
     }
 

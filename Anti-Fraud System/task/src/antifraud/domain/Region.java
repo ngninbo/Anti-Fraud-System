@@ -18,10 +18,6 @@ public enum Region {
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
     public static Region toRegion(String region) throws InvalidRegionException {
         switch (region) {
             case "SA":
@@ -41,5 +37,10 @@ public enum Region {
             default:
                 throw new InvalidRegionException("Region is invalid!");
         }
+    }
+
+    @Override
+    public String toString() {
+        return description;
     }
 }

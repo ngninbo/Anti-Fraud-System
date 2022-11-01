@@ -2,12 +2,9 @@ package antifraud.model;
 
 import antifraud.domain.Region;
 import antifraud.domain.TransactionValidationResult;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.hibernate.Hibernate;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
@@ -49,12 +46,6 @@ public class Transaction {
 
     @Enumerated(EnumType.STRING)
     private TransactionValidationResult feedback;
-
-    @ManyToOne
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "user_id")
-    @JsonIgnore
-    private User user;
 
     public Transaction(Long amount, String ip, String number, Region region, LocalDateTime date) {
         this.amount = amount;

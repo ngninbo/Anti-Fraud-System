@@ -7,7 +7,6 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import java.util.Objects;
-import java.util.Set;
 
 @Getter
 @Setter
@@ -33,9 +32,6 @@ public class User {
     private UserRole role;
 
     private boolean accountNonLocked;
-
-    @OneToMany(mappedBy="user", orphanRemoval = true)
-    private Set<Transaction> transactions;
 
     @Override
     public boolean equals(Object o) {
