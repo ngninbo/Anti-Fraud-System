@@ -2,6 +2,8 @@ package antifraud.domain;
 
 import antifraud.exception.InvalidRegionException;
 
+import java.util.Arrays;
+
 public enum Region {
 
     EAP("East Asia and Pacific"),
@@ -19,24 +21,10 @@ public enum Region {
     }
 
     public static Region toRegion(String region) throws InvalidRegionException {
-        switch (region) {
-            case "SA":
-                return SA;
-            case "EAP":
-                return EAP;
-            case "ECA":
-                return ECA;
-            case "HIC":
-                return HIC;
-            case "LAC":
-                return LAC;
-            case "SSA":
-                return SSA;
-            case "MENA":
-                return MENA;
-            default:
-                throw new InvalidRegionException("Region is invalid!");
-        }
+        return Arrays.stream(Region.values())
+                .filter(value -> value.name().equals(region))
+                .findFirst()
+                .orElseThrow(() -> new InvalidRegionException("Region is invalid!"));
     }
 
     @Override

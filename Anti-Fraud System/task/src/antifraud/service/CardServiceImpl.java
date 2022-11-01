@@ -24,22 +24,12 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     public TransactionValidationResult processAmount(Long amount, String cardNumber) {
-        var cardFromRepo = repository.findByNumber(cardNumber);
-        Card card;
 
-        if (cardFromRepo.isEmpty()) {
-            card = new Card(cardNumber);
-            repository.save(card);
-        } else {
-            card = cardFromRepo.get();
-        }
+        Card card = repository.findByNumber(cardNumber).orElse(repository.save(new Card(cardNumber)));
 
-        Long maxAllowed = card.getMaxAllowed();
-        Long maxManual = card.getMaxManual();
-
-        if (amount <= maxAllowed) {
+        if (amount <= card.getMaxAllowed()) {
             return ALLOWED;
-        } else if (amount <= maxManual) {
+        } else if (amount <= card.getMaxManual()) {
             return MANUAL_PROCESSING;
         } else {
             return PROHIBITED;
@@ -48,10 +38,13 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
-    public void processLimits(String cardNumber, Long transactionAmount,
-                              TransactionValidationResult result, TransactionValidationResult feedback) throws CardNotFoundException {
+    public void processLimits(String cardNumber,
+                              Long transactionAmount,
+                              TransactionValidationResult result,
+                              TransactionValidationResult feedback) throws CardNotFoundException {
 
-        Card card = repository.findByNumber(cardNumber).orElseThrow(() -> new CardNotFoundException(String.format("Card by number %s not found", cardNumber)));
+        Card card = repository.findByNumber(cardNumber)
+                .orElseThrow(() -> new CardNotFoundException(String.format("Card by number %s not found", cardNumber)));
 
         switch (feedback) {
             case ALLOWED:
