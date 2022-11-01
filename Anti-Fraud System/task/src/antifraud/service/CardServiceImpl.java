@@ -1,21 +1,19 @@
 package antifraud.service;
 
 import antifraud.domain.TransactionValidationResult;
+import antifraud.exception.CardNotFoundException;
 import antifraud.model.Card;
 import antifraud.repository.CardRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
-import java.util.Optional;
 
 import static antifraud.domain.TransactionValidationResult.*;
 
 @Service
 public class CardServiceImpl implements CardService {
 
-    private static final long MAX_ALLOWED = 200L;
-    private static final long MAX_MANUAL = 1500L;
     private final CardRepository repository;
 
     @Autowired
@@ -30,7 +28,7 @@ public class CardServiceImpl implements CardService {
         Card card;
 
         if (cardFromRepo.isEmpty()) {
-            card = new Card(cardNumber, MAX_ALLOWED, MAX_MANUAL);
+            card = new Card(cardNumber);
             repository.save(card);
         } else {
             card = cardFromRepo.get();
@@ -51,39 +49,48 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     public void processLimits(String cardNumber, Long transactionAmount,
-                              TransactionValidationResult result, TransactionValidationResult feedback) {
-        Optional<Card> optionalCard = repository.findByNumber(cardNumber);
+                              TransactionValidationResult result, TransactionValidationResult feedback) throws CardNotFoundException {
 
-        if (optionalCard.isPresent()) {
-            Card card = optionalCard.get();
-            switch (feedback) {
-                case ALLOWED:
-                    if (result.equals(MANUAL_PROCESSING)) {
+        Card card = repository.findByNumber(cardNumber).orElseThrow(() -> new CardNotFoundException(String.format("Card by number %s not found", cardNumber)));
+
+        switch (feedback) {
+            case ALLOWED:
+                switch (result) {
+                    case MANUAL_PROCESSING:
                         card.setMaxAllowed(increaseLimit(card.getMaxAllowed(), transactionAmount));
-                    } else if (result.equals(PROHIBITED)) {
+                        break;
+                    case PROHIBITED:
                         card.setMaxManual(increaseLimit(card.getMaxManual(), transactionAmount));
                         card.setMaxAllowed(increaseLimit(card.getMaxAllowed(), transactionAmount));
-                    }
-                    break;
-                case MANUAL_PROCESSING:
-                    if (result.equals(ALLOWED)) {
+                        break;
+                }
+                break;
+            case MANUAL_PROCESSING:
+                switch (result) {
+                    case ALLOWED:
                         card.setMaxAllowed(decreaseLimit(card.getMaxAllowed(), transactionAmount));
-                    } else if (result.equals(PROHIBITED)) {
+                        break;
+                    case PROHIBITED:
                         card.setMaxManual(increaseLimit(card.getMaxManual(), transactionAmount));
-                    }
-                    break;
-                case PROHIBITED:
-                    if (result.equals(ALLOWED)) {
+                        break;
+                }
+                break;
+            case PROHIBITED:
+                switch (result) {
+                    case ALLOWED:
                         card.setMaxAllowed(decreaseLimit(card.getMaxAllowed(), transactionAmount));
                         card.setMaxManual(decreaseLimit(card.getMaxManual(), transactionAmount));
-                    } else if (result.equals(MANUAL_PROCESSING)) {
+                        break;
+                    case MANUAL_PROCESSING:
                         card.setMaxManual(decreaseLimit(card.getMaxManual(), transactionAmount));
-                    }
-                    break;
-            }
-
-            repository.save(card);
+                        break;
+                }
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + feedback);
         }
+
+        repository.save(card);
     }
 
     private long increaseLimit(long currentLimit, long amount) {

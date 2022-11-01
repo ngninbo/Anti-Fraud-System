@@ -34,8 +34,9 @@ public class TransactionController {
     }
 
     @PutMapping("/transaction")
-    public ResponseEntity<Transaction> setFeedback(@Valid @RequestBody FeedbackUpdateRequest request) throws TransactionNotFoundException,
-            IllegalFeedbackException, TransactionFeedbackAlreadyExistException,TransactionFeedbackUpdateException {
+    public ResponseEntity<Transaction> setFeedback(@Valid @RequestBody FeedbackUpdateRequest request)
+            throws TransactionNotFoundException, IllegalFeedbackException, TransactionFeedbackAlreadyExistException,
+            TransactionFeedbackUpdateException, CardNotFoundException {
         return ResponseEntity.ok(transactionService.updateTransactionFeedback(request));
     }
 
@@ -45,7 +46,8 @@ public class TransactionController {
     }
 
     @GetMapping("/history/{number}")
-    public ResponseEntity<List<Transaction>> findByNumber(@PathVariable String number) throws InvalidNumberException, TransactionNotFoundException {
+    public ResponseEntity<List<Transaction>> findByNumber(@PathVariable String number) throws InvalidNumberException,
+            TransactionNotFoundException {
         return ResponseEntity.ok(transactionService.findAllByNumber(number));
     }
 }

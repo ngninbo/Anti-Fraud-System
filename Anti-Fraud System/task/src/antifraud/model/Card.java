@@ -2,6 +2,7 @@ package antifraud.model;
 
 import lombok.*;
 import org.hibernate.Hibernate;
+import org.hibernate.annotations.ColumnDefault;
 
 import javax.persistence.*;
 import java.util.Objects;
@@ -15,18 +16,27 @@ import java.util.Objects;
 @SequenceGenerator(name = "card_sequence", sequenceName = "CardSequence")
 public class Card {
 
+    private static transient final long MAX_ALLOWED = 200L;
+    private static transient final long MAX_MANUAL = 1500L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "card_sequence")
     @Column(name = "card_id")
     private Long id;
     private String number;
+    @Column(name = "max_allowed")
+    @ColumnDefault(value = "250")
     private Long maxAllowed;
+    @Column(name = "max_manual")
     private Long maxManual;
 
-    public Card(String cardNumber, long maxAllowed, long maxManual) {
+    {
+        this.maxAllowed = MAX_ALLOWED;
+        this.maxManual = MAX_MANUAL;
+    }
+
+    public Card(String cardNumber) {
         this.number = cardNumber;
-        this.maxAllowed = maxAllowed;
-        this.maxManual = maxManual;
     }
 
     @Override

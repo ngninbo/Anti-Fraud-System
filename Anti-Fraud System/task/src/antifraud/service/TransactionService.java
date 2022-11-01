@@ -18,7 +18,7 @@ public interface TransactionService {
 
     List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
 
-    Transaction updateTransactionFeedback(FeedbackUpdateRequest request) throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException;
+    Transaction updateTransactionFeedback(FeedbackUpdateRequest request) throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException, CardNotFoundException;
 
     List<Transaction> findAll();
 

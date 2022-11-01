@@ -157,7 +157,8 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public Transaction updateTransactionFeedback(FeedbackUpdateRequest request)
-            throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException {
+            throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException,
+            IllegalFeedbackException, TransactionFeedbackUpdateException, CardNotFoundException {
 
         Transaction transaction = transactionRepository.findById(request.getTransactionId())
                 .orElseThrow(() -> new TransactionNotFoundException(String.format("Transaction for id = %s not found", request.getTransactionId())));
