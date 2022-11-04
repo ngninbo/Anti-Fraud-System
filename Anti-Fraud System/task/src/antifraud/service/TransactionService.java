@@ -12,15 +12,15 @@ import java.util.List;
 
 public interface TransactionService {
 
-    TransactionResponse validate(TransactionDto transaction) throws UserNotFoundException, InvalidRegionException, TransactionDateParsingException;
+    TransactionResponse validate(TransactionDto transaction);
 
     List<Transaction> findAlLByNumberAndDateBetweenAndRegionNot(String number, LocalDateTime before, LocalDateTime now, Region region);
 
     List<Transaction> findAllByNumberAndDateIsBetweenAndIpNot(String number, LocalDateTime before, LocalDateTime now, String ip);
 
-    Transaction updateTransactionFeedback(FeedbackUpdateRequest request) throws TransactionNotFoundException, TransactionFeedbackAlreadyExistException, IllegalFeedbackException, TransactionFeedbackUpdateException, CardNotFoundException;
+    Transaction updateTransactionFeedback(FeedbackUpdateRequest request);
 
     List<Transaction> findAll();
 
-    List<Transaction> findAllByNumber(String number) throws InvalidNumberException, TransactionNotFoundException;
+    List<Transaction> findAllByNumber(String number);
 }

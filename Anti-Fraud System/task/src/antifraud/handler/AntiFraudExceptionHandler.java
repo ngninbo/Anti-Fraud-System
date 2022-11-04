@@ -27,7 +27,8 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class, CardAlreadyExistException.class, TransactionFeedbackAlreadyExistException.class})
+    @ExceptionHandler({UserAlreadyExistException.class, AddressAlreadyExistException.class,
+            CardAlreadyExistException.class, TransactionFeedbackAlreadyExistException.class})
     public ResponseEntity<AntiFraudCustomErrorMessage> handleConflict(Exception exception, HttpServletRequest request) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())
@@ -39,7 +40,8 @@ public class AntiFraudExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class, CardNotFoundException.class, TransactionNotFoundException.class})
+    @ExceptionHandler({UserNotFoundException.class, AddressNotFoundException.class,
+            CardNotFoundException.class, TransactionNotFoundException.class})
     public ResponseEntity<AntiFraudCustomErrorMessage> handleNotFound(Exception exception, HttpServletRequest httpServletRequest) {
         AntiFraudCustomErrorMessage body = AntiFraudCustomErrorMessage.builder()
                 .timestamp(LocalDateTime.now().toString())

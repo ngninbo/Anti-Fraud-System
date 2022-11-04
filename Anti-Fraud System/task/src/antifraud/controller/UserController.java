@@ -2,8 +2,6 @@ package antifraud.controller;
 
 import antifraud.domain.*;
 import antifraud.exception.AdminLockException;
-import antifraud.exception.RoleUpdateException;
-import antifraud.exception.UserAlreadyExistException;
 import antifraud.exception.UserNotFoundException;
 import antifraud.model.User;
 import antifraud.rest.AccessUpdateRequest;
@@ -11,7 +9,7 @@ import antifraud.rest.AccessUpdateResponse;
 import antifraud.rest.RoleChangeRequest;
 import antifraud.rest.UserDeletionResponse;
 import antifraud.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,19 +23,14 @@ import java.util.List;
 @RestController
 @RequestMapping(path = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 @Validated
+@AllArgsConstructor
 public class UserController {
 
     private final UserService userService;
     private final PasswordEncoder encoder;
 
-    @Autowired
-    public UserController(UserService userService, PasswordEncoder encoder) {
-        this.userService = userService;
-        this.encoder = encoder;
-    }
-
     @PostMapping("/user")
-    public ResponseEntity<UserDto> create(@Valid @RequestBody User user) throws UserAlreadyExistException {
+    public ResponseEntity<UserDto> create(@Valid @RequestBody User user) {
         user.setPassword(encoder.encode(user.getPassword()));
         return new ResponseEntity<>(userService.create(user), HttpStatus.CREATED);
     }
@@ -48,13 +41,12 @@ public class UserController {
     }
 
     @DeleteMapping("/user/{username}")
-    public ResponseEntity<UserDeletionResponse> remove(@PathVariable String username) throws UserNotFoundException {
+    public ResponseEntity<UserDeletionResponse> remove(@PathVariable String username) {
         return ResponseEntity.ok(userService.remove(username));
     }
 
     @PutMapping("/role")
-    public ResponseEntity<UserDto> changeRole(@Valid @RequestBody RoleChangeRequest request)
-            throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+    public ResponseEntity<UserDto> changeRole(@Valid @RequestBody RoleChangeRequest request) {
         return ResponseEntity.ok(userService.update(request));
     }
 

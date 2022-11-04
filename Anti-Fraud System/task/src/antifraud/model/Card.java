@@ -2,7 +2,6 @@ package antifraud.model;
 
 import lombok.*;
 import org.hibernate.Hibernate;
-import org.hibernate.annotations.ColumnDefault;
 
 import javax.persistence.*;
 import java.util.Objects;
@@ -25,7 +24,6 @@ public class Card {
     private Long id;
     private String number;
     @Column(name = "max_allowed")
-    @ColumnDefault(value = "250")
     private Long maxAllowed;
     @Column(name = "max_manual")
     private Long maxManual;

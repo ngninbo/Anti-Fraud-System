@@ -22,9 +22,9 @@ public interface UserService {
 
     List<UserDto> findAll();
 
-    UserDeletionResponse remove(String username) throws UserNotFoundException;
+    UserDeletionResponse remove(String username);
 
-    UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException;
+    UserDto update(RoleChangeRequest request);
 
-    AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, AdminLockException;
+    AccessUpdateResponse updateAccess(AccessUpdateRequest request);
 }

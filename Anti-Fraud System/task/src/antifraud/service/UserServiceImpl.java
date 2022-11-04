@@ -69,7 +69,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDeletionResponse remove(String username) throws UserNotFoundException {
+    public UserDeletionResponse remove(String username) {
         User user = userRepository.findUsersByUsernameIgnoreCase(username).orElseThrow(() -> new UserNotFoundException("User not found"));
         userRepository.delete(user);
         return UserDeletionResponse.builder().status(UserDeletionResponse.DEFAULT_STATUS).username(username).build();
@@ -77,7 +77,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDto update(RoleChangeRequest request) throws UserNotFoundException, RoleUpdateException, UserAlreadyExistException {
+    public UserDto update(RoleChangeRequest request) {
 
         User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("User not found!"));
@@ -98,7 +98,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public AccessUpdateResponse updateAccess(AccessUpdateRequest request) throws UserNotFoundException, AdminLockException {
+    public AccessUpdateResponse updateAccess(AccessUpdateRequest request) {
 
         User user = userRepository.findUsersByUsernameIgnoreCase(request.getUsername()).orElseThrow(() -> new UserNotFoundException("User not found"));
 

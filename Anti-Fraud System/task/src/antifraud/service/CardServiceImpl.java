@@ -3,6 +3,7 @@ package antifraud.service;
 import antifraud.domain.TransactionValidationResult;
 import antifraud.exception.CardNotFoundException;
 import antifraud.model.Card;
+import antifraud.model.Transaction;
 import antifraud.repository.CardRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,10 +39,12 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
-    public void processLimits(String cardNumber,
-                              Long transactionAmount,
-                              TransactionValidationResult result,
-                              TransactionValidationResult feedback) throws CardNotFoundException {
+    public void processLimits(Transaction transaction,
+                              TransactionValidationResult feedback) {
+
+        long transactionAmount = transaction.getAmount();
+        TransactionValidationResult result = transaction.getResult();
+        final String cardNumber = transaction.getNumber();
 
         Card card = repository.findByNumber(cardNumber)
                 .orElseThrow(() -> new CardNotFoundException(String.format("Card by number %s not found", cardNumber)));

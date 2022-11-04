@@ -2,8 +2,6 @@ package antifraud.controller;
 
 import antifraud.model.StolenCard;
 import antifraud.rest.CardDeletionResponse;
-import antifraud.exception.CardAlreadyExistException;
-import antifraud.exception.CardNotFoundException;
 import antifraud.service.StolenCardService;
 import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +26,12 @@ public class StolenCardController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<StolenCard> create(@Valid @RequestBody StolenCard stolenCard) throws CardAlreadyExistException {
+    public ResponseEntity<StolenCard> create(@Valid @RequestBody StolenCard stolenCard) {
         return ResponseEntity.ok(stolenCardService.create(stolenCard));
     }
 
     @DeleteMapping("/{number}")
-    public ResponseEntity<CardDeletionResponse> delete(@PathVariable String number) throws CardNotFoundException {
+    public ResponseEntity<CardDeletionResponse> delete(@PathVariable String number) {
         if (AntiFraudUtil.isValidNumber().negate().test(number)) {
             return ResponseEntity.badRequest().build();
         }

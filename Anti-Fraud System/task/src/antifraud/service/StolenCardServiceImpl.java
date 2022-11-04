@@ -23,7 +23,7 @@ public class StolenCardServiceImpl implements StolenCardService {
 
     @Override
     @Transactional
-    public StolenCard create(StolenCard newStolenCard) throws CardAlreadyExistException {
+    public StolenCard create(StolenCard newStolenCard) {
 
         var car = stolenCardRepository.findByNumber(newStolenCard.getNumber());
 
@@ -36,7 +36,7 @@ public class StolenCardServiceImpl implements StolenCardService {
 
     @Override
     @Transactional
-    public CardDeletionResponse removeByNumber(String number) throws CardNotFoundException {
+    public CardDeletionResponse removeByNumber(String number) {
         StolenCard stolenCard = stolenCardRepository.findByNumber(number).orElseThrow(() -> new CardNotFoundException("Card not found!"));
         stolenCardRepository.delete(stolenCard);
 

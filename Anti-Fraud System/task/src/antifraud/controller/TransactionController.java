@@ -3,7 +3,6 @@ package antifraud.controller;
 import antifraud.rest.FeedbackUpdateRequest;
 import antifraud.domain.TransactionDto;
 import antifraud.rest.TransactionResponse;
-import antifraud.exception.*;
 import antifraud.model.Transaction;
 import antifraud.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,15 +27,12 @@ public class TransactionController {
     }
 
     @PostMapping("/transaction")
-    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody TransactionDto transactionDto)
-            throws UserNotFoundException, InvalidRegionException, TransactionDateParsingException {
+    public ResponseEntity<TransactionResponse> process(@Valid @RequestBody TransactionDto transactionDto) {
         return ResponseEntity.ok(transactionService.validate(transactionDto));
     }
 
     @PutMapping("/transaction")
-    public ResponseEntity<Transaction> setFeedback(@Valid @RequestBody FeedbackUpdateRequest request)
-            throws TransactionNotFoundException, IllegalFeedbackException, TransactionFeedbackAlreadyExistException,
-            TransactionFeedbackUpdateException, CardNotFoundException {
+    public ResponseEntity<Transaction> setFeedback(@Valid @RequestBody FeedbackUpdateRequest request) {
         return ResponseEntity.ok(transactionService.updateTransactionFeedback(request));
     }
 
@@ -46,8 +42,7 @@ public class TransactionController {
     }
 
     @GetMapping("/history/{number}")
-    public ResponseEntity<List<Transaction>> findByNumber(@PathVariable String number) throws InvalidNumberException,
-            TransactionNotFoundException {
+    public ResponseEntity<List<Transaction>> findByNumber(@PathVariable String number) {
         return ResponseEntity.ok(transactionService.findAllByNumber(number));
     }
 }

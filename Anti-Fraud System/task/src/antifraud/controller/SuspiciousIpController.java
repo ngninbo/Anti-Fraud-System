@@ -1,8 +1,6 @@
 package antifraud.controller;
 
 import antifraud.rest.AddressDeletionResponse;
-import antifraud.exception.AddressAlreadyExistException;
-import antifraud.exception.AddressNotFoundException;
 import antifraud.model.Address;
 import antifraud.service.SuspiciousIpService;
 import antifraud.util.AntiFraudUtil;
@@ -28,12 +26,12 @@ public class SuspiciousIpController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Address> create(@Valid @RequestBody Address address) throws AddressAlreadyExistException {
+    public ResponseEntity<Address> create(@Valid @RequestBody Address address) {
         return ResponseEntity.ok(suspiciousIpService.create(address));
     }
 
     @DeleteMapping("/{ip}")
-    public ResponseEntity<AddressDeletionResponse> delete(@PathVariable String ip) throws AddressNotFoundException {
+    public ResponseEntity<AddressDeletionResponse> delete(@PathVariable String ip) {
         if (AntiFraudUtil.isValidIP().negate().test(ip)) {
             return ResponseEntity.badRequest().build();
         }

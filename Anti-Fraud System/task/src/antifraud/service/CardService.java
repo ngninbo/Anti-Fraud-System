@@ -2,6 +2,7 @@ package antifraud.service;
 
 import antifraud.domain.TransactionValidationResult;
 import antifraud.exception.CardNotFoundException;
+import antifraud.model.Transaction;
 
 import javax.transaction.Transactional;
 
@@ -10,5 +11,6 @@ public interface CardService {
     TransactionValidationResult processAmount(Long amount, String cardNumber);
 
     @Transactional
-    void processLimits(String cardNumber, Long transactionAmount, TransactionValidationResult result, TransactionValidationResult feedback) throws CardNotFoundException;
+    void processLimits(Transaction transaction,
+                       TransactionValidationResult feedback);
 }
