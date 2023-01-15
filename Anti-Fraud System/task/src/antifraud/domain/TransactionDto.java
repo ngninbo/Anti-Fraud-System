@@ -1,5 +1,6 @@
 package antifraud.domain;
 
+import antifraud.exception.TransactionDateParsingException;
 import antifraud.util.AntiFraudUtil;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import javax.validation.constraints.AssertTrue;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 
 @Data
@@ -40,5 +42,14 @@ public class TransactionDto {
     @AssertTrue(message = "Wrong region!")
     public boolean isValidRegion() {
         return region != null && Arrays.stream(Region.values()).anyMatch(el -> el.name().equals(region));
+    }
+
+    public LocalDateTime getDate() {
+
+        try {
+            return LocalDateTime.parse(date);
+        } catch (Exception e) {
+            throw new TransactionDateParsingException("Invalid date format");
+        }
     }
 }

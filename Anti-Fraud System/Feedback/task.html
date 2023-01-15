@@ -1,4 +1,4 @@
-<html><body><h5 id="description">Description</h5>
+<h5 id="description">Description</h5>
 <p>When working on an anti-fraud system, it is necessary to consider that the environment of transactions is constantly changing. There are many factors like the country's economy, the behavior of fraudsters, and the number of transactions happening concurrently that influence what we can call fraud. It is necessary to add certain adaptation mechanisms to our service, such as <strong>feedback</strong>. Feedback will be carried out manually by a <code class="language-json">SUPPORT</code> specialist for completed transactions. Based on the feedback results, we will change the limits of fraud detection algorithms following the special rules. Take a look at the table below that shows the logic of our feedback system:</p>
 <table border="1" cellpadding="1" cellspacing="1" style="width: 700px;">
 <tbody>
@@ -324,4 +324,4 @@
 <p><strong>Example 9: </strong><em>a GET request for /api/antifraud/history/4000008449433402; the card number fails the Luhn algorithm</em></p>
 <p><em>Response: </em><code class="language-json">400 Bad Request</code></p>
 <p><strong>Example 10: </strong><em>a GET request for /api/antifraud/history/4000009455296122</em></p>
-<p><em>Response: </em><code class="language-json">404 Not Found</code></p></body></html>
+<p><em>Response: </em><code class="language-json">404 Not Found</code></p>

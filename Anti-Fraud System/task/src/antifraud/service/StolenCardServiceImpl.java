@@ -1,10 +1,12 @@
 package antifraud.service;
 
+import antifraud.exception.InvalidNumberException;
 import antifraud.model.StolenCard;
 import antifraud.rest.CardDeletionResponse;
 import antifraud.exception.CardAlreadyExistException;
 import antifraud.exception.CardNotFoundException;
 import antifraud.repository.StolenCardRepository;
+import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,11 +27,8 @@ public class StolenCardServiceImpl implements StolenCardService {
     @Transactional
     public StolenCard create(StolenCard newStolenCard) {
 
-        var car = stolenCardRepository.findByNumber(newStolenCard.getNumber());
-
-        if (car.isPresent()) {
-            throw new CardAlreadyExistException("Card already exist!");
-        }
+        stolenCardRepository.findByNumber(newStolenCard.getNumber())
+                .ifPresent(stolenCard -> { throw new CardAlreadyExistException("Card already exist!");});
 
         return stolenCardRepository.save(newStolenCard);
     }
@@ -37,6 +36,11 @@ public class StolenCardServiceImpl implements StolenCardService {
     @Override
     @Transactional
     public CardDeletionResponse removeByNumber(String number) {
+
+        if (AntiFraudUtil.isValidNumber().negate().test(number)) {
+            throw new InvalidNumberException("Validation of given card number with Luhn Algorithm failed.");
+        }
+
         StolenCard stolenCard = stolenCardRepository.findByNumber(number).orElseThrow(() -> new CardNotFoundException("Card not found!"));
         stolenCardRepository.delete(stolenCard);
 

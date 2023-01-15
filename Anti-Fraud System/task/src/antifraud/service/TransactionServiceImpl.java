@@ -31,12 +31,7 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse validate(TransactionDto dto) {
 
         final Region region = Region.toRegion(dto.getRegion());
-        final LocalDateTime date;
-        try {
-            date = LocalDateTime.parse(dto.getDate());
-        } catch (Exception e) {
-            throw new TransactionDateParsingException("Invalid date format");
-        }
+        final LocalDateTime date = dto.getDate();
         Transaction transaction = new Transaction(dto.getAmount(), dto.getIp(), dto.getNumber(), region, date);
         TransactionResponse resp = getTransactionResponse(transaction);
         transaction.setResult(resp.getResult());

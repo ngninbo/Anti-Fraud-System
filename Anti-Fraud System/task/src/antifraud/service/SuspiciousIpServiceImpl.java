@@ -1,10 +1,12 @@
 package antifraud.service;
 
+import antifraud.exception.InvalidIpException;
 import antifraud.rest.AddressDeletionResponse;
 import antifraud.exception.AddressAlreadyExistException;
 import antifraud.exception.AddressNotFoundException;
 import antifraud.model.Address;
 import antifraud.repository.SuspiciousIpRepository;
+import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +44,11 @@ public class SuspiciousIpServiceImpl implements SuspiciousIpService {
     @Override
     @Transactional
     public AddressDeletionResponse removeIP(String ip) throws AddressNotFoundException {
+
+        if (AntiFraudUtil.isValidIP().negate().test(ip)) {
+            throw new InvalidIpException("IP address not valid.");
+        }
+
         Address address = suspiciousIpRepository.findByIp(ip).orElseThrow(() -> new AddressNotFoundException("IP address not found!"));
         suspiciousIpRepository.delete(address);
 

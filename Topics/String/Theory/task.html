@@ -16,7 +16,7 @@
   <pre><code class="language-java">String simpleString = "It is a simple string"; // a simple string
 System.out.println(simpleString);  // it prints "It is a simple string"
 
-String anotherString = "This is\na multiple\nstring"; // a string with escape sequences
+String anotherString = "This is\na multiline\nstring"; // a string with escape sequences
 System.out.println(anotherString); // it prints the result in several lines</code></pre> 
   <p>A string can represent a long character sequence (text). A string can have one or zero characters.</p> 
   <pre><code class="language-java">String strangeText = "aaaaaaaaaaaassssssssssss gggggggggggggggggggg ddddddddddd qqqqqq ffff";
@@ -44,11 +44,12 @@ char theFirstChar = s.charAt(0);  // 'H' has the index 0
 char theFifthChar = s.charAt(4); // 'a' has the index 4
 
 char theLastChar = s.charAt(s.length() - 1); // 'l' has the index 6</code></pre> 
+  <p> </p> 
   <p></p>
   <div class="alert alert-warning">
    You can easily get a character of a string by the index, but you can't change characters because strings are immutable in Java.
-  </div>
-  <p></p> 
+  </div> 
+  <p> </p> 
   <h5 id="useful-methods-of-strings" style="text-align: center;">Useful methods of strings</h5> 
   <p>The standard library of Java provides a lot of useful methods for processing strings:</p> 
   <ul> 
@@ -98,13 +99,14 @@ String fullName1 = firstName + " " + lastName; // "John Smith"
 // concatenation using the concat method 
 String fullName2 = firstName.concat(" ").concat(lastName); // "John Smith"</code></pre> 
   <p>When we concatenate two strings a new string is created (because strings are <strong>immutable</strong>).</p> 
+  <p> </p> 
   <p></p>
   <div class="alert alert-warning">
    <strong>Important: </strong>in the general case 
    <code class="language-java">str1 + str2</code> is not the same as 
    <code class="language-java">str2 + str1</code> because concatenation is not a commutative operation.
-  </div>
-  <p></p> 
+  </div> 
+  <p> </p> 
   <h5 id="appending-values-to-a-string" style="text-align: center;">Appending values to a string</h5> 
   <p>It's possible to add values of different types to a string. The value will be automatically converted to a string. See an example below.</p> 
   <pre><code class="language-java">String str = "str" + 10 + false; // the result is "str10false"</code></pre> 
@@ -119,7 +121,7 @@ int number = 100;
 
 String result1 = shortString + number + 50; // the result is "str10050"
 String result2 = number + 50 + shortString; // what is the result2?</code></pre> 
-  <p>The <code class="language-java">result2</code> is <code class="language-java">150str</code>, because, first, we calculate the sum of <code class="language-java">number</code> and <code class="language-java">50</code> and then <code class="language-java">concat</code> it with <code class="language-java">str</code>. The order of operations is important.</p> 
+  <p>The value of <code class="language-java">result2</code> will be <code class="language-java">150str</code>, because, first, we calculate the sum of <code class="language-java">number</code> and <code class="language-java">50</code> and then <code class="language-java">concat</code> it with <code class="language-java">str</code>. The order of operations is important.</p> 
   <h5 id="how-to-compare-strings-correctly" style="text-align: center;">How to compare strings correctly?</h5> 
   <p>Since <code class="language-java">String</code> is a reference type you shouldn't compare strings using the <code class="language-java">==</code><strong> </strong>or <code class="language-java">!=</code> operators. In this case, only addresses will be compared, but not actual values.</p> 
   <p><code class="language-java">String</code> has two convenient methods for comparing the equivalence of the actual content of one string with the content of another string: <code class="language-java">equals(other)</code> and <code class="language-java">equalsIgnoreCase(other)</code>. See an example below.</p> 

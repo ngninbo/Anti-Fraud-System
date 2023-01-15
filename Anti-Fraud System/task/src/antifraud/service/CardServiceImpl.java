@@ -25,8 +25,16 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     public TransactionValidationResult processAmount(Long amount, String cardNumber) {
+        
+        var cardFromRepo = repository.findByNumber(cardNumber);
+        Card card;
 
-        Card card = repository.findByNumber(cardNumber).orElse(repository.save(new Card(cardNumber)));
+        if (cardFromRepo.isEmpty()) {
+            card = new Card(cardNumber);
+            repository.save(card);
+        } else {
+            card = cardFromRepo.get();
+        }
 
         if (amount <= card.getMaxAllowed()) {
             return ALLOWED;

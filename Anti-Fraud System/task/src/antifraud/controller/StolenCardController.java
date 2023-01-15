@@ -3,7 +3,6 @@ package antifraud.controller;
 import antifraud.model.StolenCard;
 import antifraud.rest.CardDeletionResponse;
 import antifraud.service.StolenCardService;
-import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +31,6 @@ public class StolenCardController {
 
     @DeleteMapping("/{number}")
     public ResponseEntity<CardDeletionResponse> delete(@PathVariable String number) {
-        if (AntiFraudUtil.isValidNumber().negate().test(number)) {
-            return ResponseEntity.badRequest().build();
-        }
         return ResponseEntity.ok(stolenCardService.removeByNumber(number));
     }
 

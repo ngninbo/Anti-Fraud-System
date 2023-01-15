@@ -3,7 +3,7 @@ hyperskill_project:
   ide_files: https://stepik.org/media/attachments/lesson/657120/additional_files.json
   is_template_based: false
   use_ide: true
-update_date: Fri, 04 Nov 2022 13:22:31 UTC
+update_date: Sun, 15 Jan 2023 09:15:26 UTC
 stages:
 - id: 1161
   step: 18067
@@ -35,18 +35,18 @@ topics:
     theory_id: 9704
   - title: Computer algorithms
     theory_id: 16547
-  - title: The big O notation
-    theory_id: 16699
-  - title: Best, average and worst cases
-    theory_id: 20084
-  - title: Data structures
-    theory_id: 16927
   - title: Immutability
     theory_id: 7929
   - title: World Wide Web
     theory_id: 6633
   - title: HyperText Transfer Protocol
     theory_id: 6569
+  - title: The big O notation
+    theory_id: 16699
+  - title: Best, average and worst cases
+    theory_id: 20084
+  - title: Data structures
+    theory_id: 16927
   - title: Introduction to Spring Boot
     theory_id: 7944
   - title: Getting started with Spring Boot
@@ -61,8 +61,6 @@ topics:
     theory_id: 14641
   - title: Spring components
     theory_id: 14652
-  - title: Spring Security Crypto
-    theory_id: 21866
   - title: HTTP messages
     theory_id: 6752
   - title: Introduction to Spring Web MVC
@@ -73,6 +71,12 @@ topics:
     theory_id: 7834
   - title: Postman
     theory_id: 8512
+  - title: Insecure Cryptographic Storage
+    theory_id: 20069
+  - title: Spring Security Crypto
+    theory_id: 21866
+  - title: Web security, OWASP
+    theory_id: 14755
   - title: Getting data from REST
     theory_id: 13287
   - title: Posting and deleting data via REST
@@ -83,8 +87,6 @@ topics:
     theory_id: 13334
   - title: Advanced exception handling in Spring Boot
     theory_id: 19855
-  - title: Web security, OWASP
-    theory_id: 14755
   - title: Getting started with Spring Security
     theory_id: 13856
   - title: Authentication
@@ -177,6 +179,8 @@ topics:
     theory_id: 3621
   - title: Hierarchy of exceptions
     theory_id: 3570
+  - title: Exception handling
+    theory_id: 3552
   - title: Build tools
     theory_id: 4284
   - title: Command line overview
@@ -203,10 +207,10 @@ topics:
     theory_id: 20078
   - title: Dynamic array
     theory_id: 5357
-  - title: External resources
-    theory_id: 6216
   - title: Web development
     theory_id: 13931
+  - title: External resources
+    theory_id: 6216
   - title: HTML basics
     theory_id: 6434
   - title: Libraries
@@ -225,10 +229,14 @@ topics:
     theory_id: 7545
   - title: Dependency injection
     theory_id: 20580
-  - title: YAML
-    theory_id: 12722
   - title: Interfaces
     theory_id: 9640
+  - title: YAML
+    theory_id: 12722
+  - title: Synchronous, asynchronous, parallel
+    theory_id: 9332
+  - title: Processes and threads
+    theory_id: 9420
   - title: Introduction to software architecture
     theory_id: 15368
   - title: JSON
@@ -237,12 +245,16 @@ topics:
     theory_id: 5538
   - title: Debugging techniques
     theory_id: 13775
+  - title: Jackson
+    theory_id: 21027
   - title: Authentication and Authorization
     theory_id: 14219
   - title: Introduction to generic programming
     theory_id: 3492
   - title: Generics and Object
     theory_id: 3493
+  - title: Lambda expressions
+    theory_id: 11635
   - title: What are collections
     theory_id: 3770
   - title: The Collections Framework overview
@@ -253,6 +265,20 @@ topics:
     theory_id: 3581
   - title: The Set interface
     theory_id: 3575
+  - title: Threads as objects
+    theory_id: 4875
+  - title: Custom threads
+    theory_id: 4876
+  - title: Thread management
+    theory_id: 3619
+  - title: Exceptions in threads
+    theory_id: 4882
+  - title: Shared data
+    theory_id: 3610
+  - title: Thread synchronization
+    theory_id: 3557
+  - title: Collections and thread-safety
+    theory_id: 4984
   - title: MVC
     theory_id: 17197
   - title: 'Hashing: overview'
@@ -263,6 +289,8 @@ topics:
     theory_id: 13054
   - title: The Map interface
     theory_id: 3558
+  - title: Thread-safe maps
+    theory_id: 17081
   - title: Defining classes
     theory_id: 3618
   - title: Constructor
@@ -329,10 +357,10 @@ topics:
     theory_id: 19541
   - title: Relational databases with Spring Data
     theory_id: 18086
-  - title: What is SQL
-    theory_id: 7054
   - title: Relational Data Model
     theory_id: 13785
+  - title: What is SQL
+    theory_id: 7054
   - title: Intro to MySQL
     theory_id: 16662
   - title: Object-Relational Mapping (ORM)
@@ -352,6 +380,8 @@ topics:
     theory_id: 18031
   - title: POST vs. PUT requests
     theory_id: 13714
+  - title: Inner classes
+    theory_id: 11505
   4:
   - title: IP
     theory_id: 13662

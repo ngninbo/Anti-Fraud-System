@@ -3,7 +3,6 @@ package antifraud.controller;
 import antifraud.rest.AddressDeletionResponse;
 import antifraud.model.Address;
 import antifraud.service.SuspiciousIpService;
-import antifraud.util.AntiFraudUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +31,6 @@ public class SuspiciousIpController {
 
     @DeleteMapping("/{ip}")
     public ResponseEntity<AddressDeletionResponse> delete(@PathVariable String ip) {
-        if (AntiFraudUtil.isValidIP().negate().test(ip)) {
-            return ResponseEntity.badRequest().build();
-        }
         return ResponseEntity.ok(suspiciousIpService.removeIP(ip));
     }
 
