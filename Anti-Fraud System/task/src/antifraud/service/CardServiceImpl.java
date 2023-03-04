@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import javax.transaction.Transactional;
 
 import static antifraud.domain.TransactionValidationResult.*;
+import static antifraud.util.AntiFraudUtil.decreaseLimit;
+import static antifraud.util.AntiFraudUtil.increaseLimit;
 
 @Service
 public class CardServiceImpl implements CardService {
@@ -25,16 +27,8 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     public TransactionValidationResult processAmount(Long amount, String cardNumber) {
-        
-        var cardFromRepo = repository.findByNumber(cardNumber);
-        Card card;
 
-        if (cardFromRepo.isEmpty()) {
-            card = new Card(cardNumber);
-            repository.save(card);
-        } else {
-            card = cardFromRepo.get();
-        }
+        Card card = findCardByNumberAndSaveIfAbsent(cardNumber);
 
         if (amount <= card.getMaxAllowed()) {
             return ALLOWED;
@@ -97,11 +91,15 @@ public class CardServiceImpl implements CardService {
         repository.save(card);
     }
 
-    private long increaseLimit(long currentLimit, long amount) {
-        return (long) Math.ceil(0.8 * currentLimit + 0.2 * amount);
+    private Card findCardByNumberAndSaveIfAbsent(String cardNumber) {
+        var cardFromRepo = repository.findByNumber(cardNumber);
+
+        return cardFromRepo.isEmpty() ? save(cardNumber) : cardFromRepo.get();
     }
 
-    private long decreaseLimit(long currentLimit, long amount) {
-        return (long) Math.ceil(0.8 * currentLimit - 0.2 * amount);
+    private Card save(String cardNumber) {
+        Card card = new Card(cardNumber);
+        repository.save(card);
+        return card;
     }
 }

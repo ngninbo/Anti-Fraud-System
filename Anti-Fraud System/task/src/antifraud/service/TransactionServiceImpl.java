@@ -94,105 +94,149 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private TransactionResponse getTransactionResponse(Transaction transaction) {
-        var tb = TransactionResponse.builder();
-        final String ip = transaction.getIp();
-        final String number = transaction.getNumber();
-        Region region = transaction.getRegion();
-        LocalDateTime date = transaction.getDate();
-        LocalDateTime lastHour = date.minusHours(1);
+        var result = cardService.processAmount(transaction.getAmount(), transaction.getNumber());
+        return new TransactionServiceResponse(transaction).setResult(result).get();
+    }
 
-        boolean isBlackListedAddress = suspiciousIpService.isBlacklistedIp(ip);
-        boolean isBlackListedCardNumber = stolenCardService.isBlacklistedCardNumber(number);
+    protected class TransactionServiceResponse {
 
-        var  numTransactionsNotInRegion = findAlLByNumberAndDateBetweenAndRegionNot(number,
-                lastHour, date, region).stream().map(Transaction::getRegion).distinct().count();
-        var numTransactionsNotWithIp = findAllByNumberAndDateIsBetweenAndIpNot(number,
-                lastHour, date, ip).stream().map(Transaction::getIp).distinct().count();
+        private boolean isTransactionFromTwoDifferentRegions;
+        private boolean isTransactionFromTwoDifferentIps;
+        private boolean isTransactionFromMoreThanTwoDifferentRegions;
+        private boolean isTransactionFromMoreThanTwoDifferentIps;
 
-        var result = cardService.processAmount(transaction.getAmount(), number);
+        boolean isBlackListedAddress;
+        boolean isBlackListedCardNumber;
 
-        final boolean isTransactionFromTwoDifferentRegions = numTransactionsNotInRegion == 2;
-        final boolean isTransactionFromTwoDifferentIps = numTransactionsNotWithIp == 2;
-        final boolean isTransactionFromMoreThanTwoDifferentRegions = numTransactionsNotInRegion > 2;
-        final boolean isTransactionFromMoreThanTwoDifferentIps = numTransactionsNotWithIp > 2;
-        
-        switch (result) {
-            case ALLOWED:
-                if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
-                } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("ip-correlation, region-correlation");
-                } else if (isBlackListedCardNumber && isBlackListedAddress) {
-                    tb.result(PROHIBITED).info("card-number, ip");
-                } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("region-correlation");
-                } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    tb.result(PROHIBITED).info("ip-correlation");
-                } else if (isBlackListedCardNumber) {
-                    tb.result(PROHIBITED).info("card-number");
-                } else if (isBlackListedAddress) {
-                    tb.result(PROHIBITED).info("ip");
-                } else if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps) {
-                    tb.result(MANUAL_PROCESSING).info("ip-correlation, region-correlation");
-                } else if (isTransactionFromTwoDifferentRegions) {
-                    tb.result(MANUAL_PROCESSING).info("region-correlation");
-                } else if (isTransactionFromTwoDifferentIps) {
-                    tb.result(MANUAL_PROCESSING).info("ip-correlation");
-                } else {
-                    tb.result(ALLOWED).info("none");
-                }
-                break;
-            case PROHIBITED:
-                tb.result(result);
-                if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.info("amount, card-number, ip, ip-correlation, region-correlation");
-                } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps) {
-                    tb.info("amount, card-number, ip, ip-correlation");
-                } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.info("amount, card-number, ip, region-correlation");
-                } else if (isBlackListedCardNumber && isBlackListedAddress) {
-                    tb.info("amount, card-number, ip");
-                } else if (isBlackListedCardNumber) {
-                    tb.info("amount, card-number");
-                } else if (isBlackListedAddress) {
-                    tb.info("amount, ip");
-                } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.info("amount, region-correlation");
-                } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    tb.info("amount, ip-correlation");
-                } else {
-                    tb.info("amount");
-                }
-                break;
-            case MANUAL_PROCESSING:
-                tb.result(result);
-                if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
-                } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("ip-correlation, region-correlation");
-                } else if (isBlackListedCardNumber && isBlackListedAddress) {
-                    tb.result(PROHIBITED).info("card-number, ip");
-                } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                    tb.result(PROHIBITED).info("region-correlation");
-                } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                    tb.result(PROHIBITED).info("ip-correlation");
-                } else if (isBlackListedCardNumber) {
-                    tb.result(PROHIBITED).info("card-number");
-                } else if (isBlackListedAddress) {
-                    tb.result(PROHIBITED).info("ip");
-                } else if (isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
-                    tb.info("ip-correlation, region-correlation");
-                } else if (isTransactionFromTwoDifferentRegions) {
-                    tb.info("region-correlation");
-                } else if (isTransactionFromTwoDifferentIps) {
-                    tb.info("ip-correlation");
-                } else {
-                    tb.info("amount");
-                }
-                break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + result);
+        private final TransactionResponse.TransactionResponseBuilder tb = TransactionResponse.builder();
+
+        private TransactionValidationResult result;
+
+        public TransactionServiceResponse(Transaction transaction) {
+            setUp(transaction);
         }
-        return tb.build();
+
+        private void setUp(Transaction transaction) {
+            final String ip = transaction.getIp();
+            final String number = transaction.getNumber();
+            Region region = transaction.getRegion();
+            LocalDateTime date = transaction.getDate();
+            LocalDateTime lastHour = date.minusHours(1);
+
+            var  numTransactionsNotInRegion = findAlLByNumberAndDateBetweenAndRegionNot(number,
+                    lastHour, date, region).stream().map(Transaction::getRegion).distinct().count();
+
+            var numTransactionsNotWithIp = findAllByNumberAndDateIsBetweenAndIpNot(number,
+                    lastHour, date, ip).stream().map(Transaction::getIp).distinct().count();
+
+            isTransactionFromTwoDifferentRegions = numTransactionsNotInRegion == 2;
+            isTransactionFromTwoDifferentIps = numTransactionsNotWithIp == 2;
+            isTransactionFromMoreThanTwoDifferentRegions = numTransactionsNotInRegion > 2;
+            isTransactionFromMoreThanTwoDifferentIps = numTransactionsNotWithIp > 2;
+
+            isBlackListedAddress = suspiciousIpService.isBlacklistedIp(ip);
+            isBlackListedCardNumber = stolenCardService.isBlacklistedCardNumber(number);
+        }
+
+        public TransactionServiceResponse setResult(TransactionValidationResult result) {
+            this.result = result;
+            return this;
+        }
+
+        public TransactionResponse get() {
+
+            switch (result) {
+                case ALLOWED:
+                    return doAllowed();
+                case MANUAL_PROCESSING:
+                    return doManual();
+                case PROHIBITED:
+                    return doProhibit();
+                default:
+                    throw new IllegalStateException("Unexpected value: " + result);
+            }
+        }
+
+        private TransactionResponse doAllowed() {
+            if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
+            } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("ip-correlation, region-correlation");
+            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+                tb.result(PROHIBITED).info("card-number, ip");
+            } else if (isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("region-correlation");
+            } else if (isTransactionFromMoreThanTwoDifferentIps) {
+                tb.result(PROHIBITED).info("ip-correlation");
+            } else if (isBlackListedCardNumber) {
+                tb.result(PROHIBITED).info("card-number");
+            } else if (isBlackListedAddress) {
+                tb.result(PROHIBITED).info("ip");
+            } else if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps) {
+                tb.result(MANUAL_PROCESSING).info("ip-correlation, region-correlation");
+            } else if (isTransactionFromTwoDifferentRegions) {
+                tb.result(MANUAL_PROCESSING).info("region-correlation");
+            } else if (isTransactionFromTwoDifferentIps) {
+                tb.result(MANUAL_PROCESSING).info("ip-correlation");
+            } else {
+                tb.result(ALLOWED).info("none");
+            }
+
+            return tb.build();
+        }
+
+        private TransactionResponse doProhibit() {
+            tb.result(result);
+            if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.info("amount, card-number, ip, ip-correlation, region-correlation");
+            } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps) {
+                tb.info("amount, card-number, ip, ip-correlation");
+            } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.info("amount, card-number, ip, region-correlation");
+            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+                tb.info("amount, card-number, ip");
+            } else if (isBlackListedCardNumber) {
+                tb.info("amount, card-number");
+            } else if (isBlackListedAddress) {
+                tb.info("amount, ip");
+            } else if (isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.info("amount, region-correlation");
+            } else if (isTransactionFromMoreThanTwoDifferentIps) {
+                tb.info("amount, ip-correlation");
+            } else {
+                tb.info("amount");
+            }
+
+            return tb.build();
+        }
+
+        private TransactionResponse doManual() {
+            tb.result(result);
+            if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
+            } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("ip-correlation, region-correlation");
+            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+                tb.result(PROHIBITED).info("card-number, ip");
+            } else if (isTransactionFromMoreThanTwoDifferentRegions) {
+                tb.result(PROHIBITED).info("region-correlation");
+            } else if (isTransactionFromMoreThanTwoDifferentIps) {
+                tb.result(PROHIBITED).info("ip-correlation");
+            } else if (isBlackListedCardNumber) {
+                tb.result(PROHIBITED).info("card-number");
+            } else if (isBlackListedAddress) {
+                tb.result(PROHIBITED).info("ip");
+            } else if (isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
+                tb.info("ip-correlation, region-correlation");
+            } else if (isTransactionFromTwoDifferentRegions) {
+                tb.info("region-correlation");
+            } else if (isTransactionFromTwoDifferentIps) {
+                tb.info("ip-correlation");
+            } else {
+                tb.info("amount");
+            }
+
+            return tb.build();
+        }
     }
 }

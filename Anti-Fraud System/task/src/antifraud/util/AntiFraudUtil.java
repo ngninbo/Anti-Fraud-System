@@ -15,23 +15,34 @@ public class AntiFraudUtil {
     }
 
     public static Predicate<String> isValidNumber() {
-        return number -> {
-            int checkSum = Integer.parseInt(String.valueOf(number.charAt(number.length() - 1)));
+        return AntiFraudUtil::matchLuhnAlgorithm;
+    }
 
-            for (int i = 0; i < number.length() - 1; i++) {
-                int digit = Integer.parseInt(String.valueOf(number.charAt(i)));
+    private static boolean matchLuhnAlgorithm(String number) {
+        int checkSum = Integer.parseInt(String.valueOf(number.charAt(number.length() - 1)));
 
-                if (i % 2 == 0) {
-                    digit = digit * 2;
+        for (int i = 0; i < number.length() - 1; i++) {
+            int digit = Integer.parseInt(String.valueOf(number.charAt(i)));
 
-                    if (digit > 9) {
-                        digit = digit - 9;
-                    }
+            if (i % 2 == 0) {
+                digit = digit * 2;
+
+                if (digit > 9) {
+                    digit = digit - 9;
                 }
-                checkSum += digit;
             }
 
-            return checkSum % 10 == 0;
-        };
+            checkSum += digit;
+        }
+
+        return checkSum % 10 == 0;
+    }
+
+    public static long increaseLimit(long currentLimit, long amount) {
+        return (long) Math.ceil(0.8 * currentLimit + 0.2 * amount);
+    }
+
+    public static long decreaseLimit(long currentLimit, long amount) {
+        return (long) Math.ceil(0.8 * currentLimit - 0.2 * amount);
     }
 }
