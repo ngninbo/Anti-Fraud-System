@@ -14,6 +14,7 @@ import javax.transaction.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.BiFunction;
 
 import static antifraud.domain.TransactionValidationResult.*;
 
@@ -105,8 +106,8 @@ public class TransactionServiceImpl implements TransactionService {
         private boolean isTransactionFromMoreThanTwoDifferentRegions;
         private boolean isTransactionFromMoreThanTwoDifferentIps;
 
-        boolean isBlackListedAddress;
-        boolean isBlackListedCardNumber;
+        private boolean isBlackListedAddress;
+        private boolean isBlackListedCardNumber;
 
         private final TransactionResponse.TransactionResponseBuilder tb = TransactionResponse.builder();
 
@@ -123,16 +124,16 @@ public class TransactionServiceImpl implements TransactionService {
             LocalDateTime date = transaction.getDate();
             LocalDateTime lastHour = date.minusHours(1);
 
-            var  numTransactionsNotInRegion = findAlLByNumberAndDateBetweenAndRegionNot(number,
+            long numTransactionsNotInRegion = findAlLByNumberAndDateBetweenAndRegionNot(number,
                     lastHour, date, region).stream().map(Transaction::getRegion).distinct().count();
 
-            var numTransactionsNotWithIp = findAllByNumberAndDateIsBetweenAndIpNot(number,
+            long numTransactionsNotWithIp = findAllByNumberAndDateIsBetweenAndIpNot(number,
                     lastHour, date, ip).stream().map(Transaction::getIp).distinct().count();
 
-            isTransactionFromTwoDifferentRegions = numTransactionsNotInRegion == 2;
-            isTransactionFromTwoDifferentIps = numTransactionsNotWithIp == 2;
-            isTransactionFromMoreThanTwoDifferentRegions = numTransactionsNotInRegion > 2;
-            isTransactionFromMoreThanTwoDifferentIps = numTransactionsNotWithIp > 2;
+            isTransactionFromTwoDifferentRegions = equalTwo(numTransactionsNotInRegion);
+            isTransactionFromTwoDifferentIps = equalTwo(numTransactionsNotWithIp);
+            isTransactionFromMoreThanTwoDifferentRegions = isGreaterThanTwo(numTransactionsNotInRegion);
+            isTransactionFromMoreThanTwoDifferentIps = isGreaterThanTwo(numTransactionsNotWithIp);
 
             isBlackListedAddress = suspiciousIpService.isBlacklistedIp(ip);
             isBlackListedCardNumber = stolenCardService.isBlacklistedCardNumber(number);
@@ -158,11 +159,11 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         private TransactionResponse doAllowed() {
-            if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+            if (prohibit()) {
                 tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
-            } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+            } else if (moreThanTwoIpsAndRegions()) {
                 tb.result(PROHIBITED).info("ip-correlation, region-correlation");
-            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+            } else if (cardAndAddressBlacklisted()) {
                 tb.result(PROHIBITED).info("card-number, ip");
             } else if (isTransactionFromMoreThanTwoDifferentRegions) {
                 tb.result(PROHIBITED).info("region-correlation");
@@ -172,7 +173,7 @@ public class TransactionServiceImpl implements TransactionService {
                 tb.result(PROHIBITED).info("card-number");
             } else if (isBlackListedAddress) {
                 tb.result(PROHIBITED).info("ip");
-            } else if (isTransactionFromTwoDifferentRegions && isTransactionFromTwoDifferentIps) {
+            } else if (ipAndRegionCorrelation()) {
                 tb.result(MANUAL_PROCESSING).info("ip-correlation, region-correlation");
             } else if (isTransactionFromTwoDifferentRegions) {
                 tb.result(MANUAL_PROCESSING).info("region-correlation");
@@ -187,13 +188,13 @@ public class TransactionServiceImpl implements TransactionService {
 
         private TransactionResponse doProhibit() {
             tb.result(result);
-            if (isBlackListedAddress && isBlackListedCardNumber && isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+            if (prohibit()) {
                 tb.info("amount, card-number, ip, ip-correlation, region-correlation");
-            } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentIps) {
+            } else if (check().apply(cardAndAddressBlacklisted(), isTransactionFromMoreThanTwoDifferentIps)) {
                 tb.info("amount, card-number, ip, ip-correlation");
-            } else if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromMoreThanTwoDifferentRegions) {
+            } else if (check().apply(cardAndAddressBlacklisted(), isTransactionFromMoreThanTwoDifferentRegions)) {
                 tb.info("amount, card-number, ip, region-correlation");
-            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+            } else if (cardAndAddressBlacklisted()) {
                 tb.info("amount, card-number, ip");
             } else if (isBlackListedCardNumber) {
                 tb.info("amount, card-number");
@@ -212,11 +213,11 @@ public class TransactionServiceImpl implements TransactionService {
 
         private TransactionResponse doManual() {
             tb.result(result);
-            if (isBlackListedCardNumber && isBlackListedAddress && isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
+            if (prohibit()) {
                 tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
-            } else if (isTransactionFromMoreThanTwoDifferentIps && isTransactionFromMoreThanTwoDifferentRegions) {
+            } else if (moreThanTwoIpsAndRegions()) {
                 tb.result(PROHIBITED).info("ip-correlation, region-correlation");
-            } else if (isBlackListedCardNumber && isBlackListedAddress) {
+            } else if (cardAndAddressBlacklisted()) {
                 tb.result(PROHIBITED).info("card-number, ip");
             } else if (isTransactionFromMoreThanTwoDifferentRegions) {
                 tb.result(PROHIBITED).info("region-correlation");
@@ -226,7 +227,7 @@ public class TransactionServiceImpl implements TransactionService {
                 tb.result(PROHIBITED).info("card-number");
             } else if (isBlackListedAddress) {
                 tb.result(PROHIBITED).info("ip");
-            } else if (isTransactionFromTwoDifferentIps && isTransactionFromTwoDifferentRegions) {
+            } else if (ipAndRegionCorrelation()) {
                 tb.info("ip-correlation, region-correlation");
             } else if (isTransactionFromTwoDifferentRegions) {
                 tb.info("region-correlation");
@@ -237,6 +238,34 @@ public class TransactionServiceImpl implements TransactionService {
             }
 
             return tb.build();
+        }
+
+        private boolean prohibit() {
+            return check().apply(cardAndAddressBlacklisted(), ipAndRegionCorrelation());
+        }
+
+        private boolean ipAndRegionCorrelation() {
+            return check().apply(isTransactionFromTwoDifferentIps, isTransactionFromTwoDifferentRegions);
+        }
+
+        private boolean cardAndAddressBlacklisted() {
+            return check().apply(isBlackListedCardNumber, isBlackListedAddress);
+        }
+
+        private boolean moreThanTwoIpsAndRegions() {
+            return check().apply(isTransactionFromMoreThanTwoDifferentIps, isTransactionFromMoreThanTwoDifferentRegions);
+        }
+
+        private BiFunction<Boolean, Boolean, Boolean> check() {
+            return (a, b) -> a && b;
+        }
+
+        private boolean isGreaterThanTwo(long value) {
+            return value > 2;
+        }
+
+        private boolean equalTwo(long value) {
+            return value == 2;
         }
     }
 }
