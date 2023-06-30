@@ -22,6 +22,11 @@ import static antifraud.domain.TransactionValidationResult.*;
 @AllArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
 
+    private static final String CARD_NUMBER = "card-number";
+    private static final String IP_CORRELATION = "ip-correlation";
+    private static final String REGION_CORRELATION = "region-correlation";
+    private static final String AMOUNT = "amount";
+    private static final String IP = "ip";
     private final TransactionRepository transactionRepository;
     private final SuspiciousIpService suspiciousIpService;
     private final StolenCardService stolenCardService;
@@ -160,25 +165,25 @@ public class TransactionServiceImpl implements TransactionService {
 
         private TransactionResponse doAllowed() {
             if (prohibit()) {
-                tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
+                tb.result(PROHIBITED).info(joinReasons(CARD_NUMBER, IP, IP_CORRELATION, REGION_CORRELATION));
             } else if (moreThanTwoIpsAndRegions()) {
-                tb.result(PROHIBITED).info("ip-correlation, region-correlation");
+                tb.result(PROHIBITED).info(joinReasons(IP_CORRELATION, REGION_CORRELATION));
             } else if (cardAndAddressBlacklisted()) {
-                tb.result(PROHIBITED).info("card-number, ip");
+                tb.result(PROHIBITED).info(joinReasons(CARD_NUMBER, IP));
             } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                tb.result(PROHIBITED).info("region-correlation");
+                tb.result(PROHIBITED).info(REGION_CORRELATION);
             } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                tb.result(PROHIBITED).info("ip-correlation");
+                tb.result(PROHIBITED).info(IP_CORRELATION);
             } else if (isBlackListedCardNumber) {
-                tb.result(PROHIBITED).info("card-number");
+                tb.result(PROHIBITED).info(CARD_NUMBER);
             } else if (isBlackListedAddress) {
-                tb.result(PROHIBITED).info("ip");
+                tb.result(PROHIBITED).info(IP);
             } else if (ipAndRegionCorrelation()) {
-                tb.result(MANUAL_PROCESSING).info("ip-correlation, region-correlation");
+                tb.result(MANUAL_PROCESSING).info(joinReasons(IP_CORRELATION, REGION_CORRELATION));
             } else if (isTransactionFromTwoDifferentRegions) {
-                tb.result(MANUAL_PROCESSING).info("region-correlation");
+                tb.result(MANUAL_PROCESSING).info(REGION_CORRELATION);
             } else if (isTransactionFromTwoDifferentIps) {
-                tb.result(MANUAL_PROCESSING).info("ip-correlation");
+                tb.result(MANUAL_PROCESSING).info(IP_CORRELATION);
             } else {
                 tb.result(ALLOWED).info("none");
             }
@@ -189,23 +194,23 @@ public class TransactionServiceImpl implements TransactionService {
         private TransactionResponse doProhibit() {
             tb.result(result);
             if (prohibit()) {
-                tb.info("amount, card-number, ip, ip-correlation, region-correlation");
+                tb.info(joinReasons(AMOUNT, CARD_NUMBER, IP, IP_CORRELATION, REGION_CORRELATION));
             } else if (check().apply(cardAndAddressBlacklisted(), isTransactionFromMoreThanTwoDifferentIps)) {
-                tb.info("amount, card-number, ip, ip-correlation");
+                tb.info(joinReasons(AMOUNT, CARD_NUMBER, IP, IP_CORRELATION));
             } else if (check().apply(cardAndAddressBlacklisted(), isTransactionFromMoreThanTwoDifferentRegions)) {
-                tb.info("amount, card-number, ip, region-correlation");
+                tb.info(joinReasons(AMOUNT, CARD_NUMBER, IP, REGION_CORRELATION));
             } else if (cardAndAddressBlacklisted()) {
-                tb.info("amount, card-number, ip");
+                tb.info(joinReasons(AMOUNT, CARD_NUMBER, IP));
             } else if (isBlackListedCardNumber) {
-                tb.info("amount, card-number");
+                tb.info(joinReasons(AMOUNT, CARD_NUMBER));
             } else if (isBlackListedAddress) {
-                tb.info("amount, ip");
+                tb.info(joinReasons(AMOUNT, IP));
             } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                tb.info("amount, region-correlation");
+                tb.info(joinReasons(AMOUNT, REGION_CORRELATION));
             } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                tb.info("amount, ip-correlation");
+                tb.info(joinReasons(AMOUNT, IP_CORRELATION));
             } else {
-                tb.info("amount");
+                tb.info(AMOUNT);
             }
 
             return tb.build();
@@ -214,30 +219,34 @@ public class TransactionServiceImpl implements TransactionService {
         private TransactionResponse doManual() {
             tb.result(result);
             if (prohibit()) {
-                tb.result(PROHIBITED).info("card-number, ip, ip-correlation, region-correlation");
+                tb.result(PROHIBITED).info(joinReasons(CARD_NUMBER, IP, IP_CORRELATION, REGION_CORRELATION));
             } else if (moreThanTwoIpsAndRegions()) {
-                tb.result(PROHIBITED).info("ip-correlation, region-correlation");
+                tb.result(PROHIBITED).info(joinReasons(IP_CORRELATION, REGION_CORRELATION));
             } else if (cardAndAddressBlacklisted()) {
-                tb.result(PROHIBITED).info("card-number, ip");
+                tb.result(PROHIBITED).info(joinReasons(CARD_NUMBER, IP));
             } else if (isTransactionFromMoreThanTwoDifferentRegions) {
-                tb.result(PROHIBITED).info("region-correlation");
+                tb.result(PROHIBITED).info(REGION_CORRELATION);
             } else if (isTransactionFromMoreThanTwoDifferentIps) {
-                tb.result(PROHIBITED).info("ip-correlation");
+                tb.result(PROHIBITED).info(IP_CORRELATION);
             } else if (isBlackListedCardNumber) {
-                tb.result(PROHIBITED).info("card-number");
+                tb.result(PROHIBITED).info(CARD_NUMBER);
             } else if (isBlackListedAddress) {
-                tb.result(PROHIBITED).info("ip");
+                tb.result(PROHIBITED).info(IP);
             } else if (ipAndRegionCorrelation()) {
-                tb.info("ip-correlation, region-correlation");
+                tb.info(joinReasons(IP_CORRELATION, REGION_CORRELATION));
             } else if (isTransactionFromTwoDifferentRegions) {
-                tb.info("region-correlation");
+                tb.info(REGION_CORRELATION);
             } else if (isTransactionFromTwoDifferentIps) {
-                tb.info("ip-correlation");
+                tb.info(IP_CORRELATION);
             } else {
-                tb.info("amount");
+                tb.info(AMOUNT);
             }
 
             return tb.build();
+        }
+
+        private String joinReasons(String... reasons) {
+            return String.join(", ", reasons);
         }
 
         private boolean prohibit() {
