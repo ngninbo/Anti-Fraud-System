@@ -4,7 +4,6 @@ import antifraud.rest.FeedbackUpdateRequest;
 import antifraud.domain.Region;
 import antifraud.domain.TransactionDto;
 import antifraud.rest.TransactionResponse;
-import antifraud.exception.*;
 import antifraud.model.Transaction;
 
 import java.time.LocalDateTime;
